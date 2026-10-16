@@ -6,6 +6,7 @@ import {
   formatEventTime,
   groupNewsReports,
 } from '../monitoring/events.js';
+import { createSavedMonitoringViews } from '../monitoring/savedViews.js';
 import { createMonitoringStore, eventMatches } from '../monitoring/store.js';
 import { createMonitoringNews } from '../monitoring/news.js';
 import { NEWS_TOPICS, isNewsProvider } from '../monitoring/newsQuery.js';
@@ -378,6 +379,82 @@ export function createMonitoringPanel({
     'Map filters affect earthquakes while this panel is open. News query context is not an incident location. Time windows compare each record’s labeled timestamp; coverage is limited to loaded feeds.',
     'monitoring-help',
   );
+  const savedViews = createSavedMonitoringViews(providerStorage);
+  const savedWrap = make(
+    'div',
+    body,
+    null,
+    'monitoring-news-query monitoring-saved-views',
+  );
+  const savedFields = make('fieldset', savedWrap);
+  make('legend', savedFields, 'Saved filter views');
+  const nameLabel = make('label', savedFields, 'View name');
+  const viewName = make('input', nameLabel);
+  viewName.type = 'text';
+  viewName.maxLength = 60;
+  viewName.dataset.savedView = 'name';
+  const viewLabel = make('label', savedFields, 'Saved view');
+  const viewSelect = make('select', viewLabel);
+  viewSelect.dataset.savedView = 'select';
+  const viewStatus = make('p', savedFields, '', 'monitoring-help');
+  viewStatus.setAttribute('role', 'status');
+  make(
+    'p',
+    savedFields,
+    'Save up to 12 named views on this device, including keywords and map bounds. Saving the same name replaces it. Loading filters loaded records; it does not search, enable layers or move the camera. Views are never loaded automatically.',
+    'monitoring-help',
+  );
+  function showSavedViews(views, selected = viewSelect.value) {
+    for (const child of [...viewSelect.children]) child.remove();
+    const placeholder = make('option', viewSelect, 'Choose a saved view');
+    placeholder.value = '';
+    for (const view of views) {
+      const option = make('option', viewSelect, view.name);
+      option.value = view.name;
+    }
+    viewSelect.value = views.some((v) => v.name === selected) ? selected : '';
+  }
+  function viewAction(action) {
+    try {
+      action();
+    } catch (error) {
+      viewStatus.textContent = `Could not update saved views: ${error.message || 'Device storage unavailable.'}`;
+    }
+  }
+  const savedActions = make('div', savedFields, null, 'monitoring-actions');
+  button(savedActions, 'Save/update view', () =>
+    viewAction(() => {
+      const views = savedViews.save(viewName.value, store.snapshot().filters);
+      showSavedViews(views, viewName.value.trim());
+      viewStatus.textContent = 'View saved on this device.';
+    }),
+  );
+  button(savedActions, 'Load view', () =>
+    viewAction(() => {
+      const views = savedViews.list();
+      const view = views.find((v) => v.name === viewSelect.value);
+      showSavedViews(views);
+      if (!view) {
+        viewStatus.textContent = 'Choose an available saved view.';
+        return;
+      }
+      limit = 100;
+      store.filter(view.filters);
+      viewName.value = view.name;
+      viewStatus.textContent = 'Saved filters loaded. No search was started.';
+    }),
+  );
+  button(savedActions, 'Delete view', () =>
+    viewAction(() => {
+      if (!viewSelect.value) {
+        viewStatus.textContent = 'Choose a saved view to delete.';
+        return;
+      }
+      showSavedViews(savedViews.remove(viewSelect.value), '');
+      viewStatus.textContent = 'Saved view deleted.';
+    }),
+  );
+  viewAction(() => showSavedViews(savedViews.list()));
   const notice = make('p', body, '', 'monitoring-notice');
   notice.setAttribute('role', 'status');
   const counts = make('p', body, '', 'monitoring-counts');

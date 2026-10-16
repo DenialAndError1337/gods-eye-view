@@ -1058,5 +1058,7 @@
   "scripts/validate-monitoring.mjs",
   "src/tooling/monitoringValidation.test.mjs",
   "src/tools/tool-schema-codepoints.test.mjs",
-  "src/layers/bikeshare/acquisitionHealth.test.mjs"
+  "src/layers/bikeshare/acquisitionHealth.test.mjs",
+  "src/monitoring/savedViews.js",
+  "src/monitoring/savedViews.test.mjs"
 ]

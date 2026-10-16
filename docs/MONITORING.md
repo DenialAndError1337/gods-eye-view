@@ -32,7 +32,8 @@ Opening it does not enable layers or fetch news. It is not shown in embedded pan
   including ones beyond the displayed list page.
 - Closing the panel removes its map filter and selection emphasis. It leaves
   layer visibility, tracking and existing share preferences under their usual
-  owners. Monitoring filters are transient and are not saved into share links.
+  owners. Monitoring filters are transient by default and are not saved into share links.
+  Named filter views are stored locally only when explicitly saved.
 
 Headlines are **reports, not independently corroborated incidents**. URL duplicates
 collapse within a response; syndication across publishers is not treated as
@@ -131,3 +132,25 @@ or invalid entry times stay unknown. Source filters include loaded configured
 feeds. The existing feed selector, remembered provider IDs, explicit search,
 cache age and headline-filter semantics remain unchanged. Install the new pinned
 XML dependency with `npm ci` after applying the Atom update.
+
+## Saved filter views and regions
+
+Use **Save/update view** to save up to 12 named filter presets on this browser/device.
+A matching name (case insensitive) is replaced. Saved fields are category, source,
+publisher, keyword, relative time window, unknown-time/unlocated inclusion and
+optional captured map bounds. Keywords and regions can be sensitive on a shared
+device. **Delete view** removes one preset; Reset filters does not delete presets.
+Browser storage clearing can remove them. No server synchronization or export is added.
+
+Choose a preset and press **Load view** to apply it to loaded records. Views never
+auto-load, search, enable a layer or move the camera. Bounds can cross the antimeridian.
+A saved time window remains relative to the current time; it is not an archive.
+Unloaded sources/publishers remain selected and may match zero records. The news
+search form, provider preference, results, selected record, camera and layer state
+are excluded. The existing provider checkbox retains its original provider-only scope.
+
+Storage uses the separate `gev.monitoring.views.v1` key with a version-1 envelope.
+Reads validate the complete bounded inventory; writes first reread current storage.
+No migration is needed for this first version. Malformed/unknown versions are kept
+and block changes rather than being silently reset. Storage/quota errors are shown
+without claiming a save succeeded. Future versions require an explicit migration.

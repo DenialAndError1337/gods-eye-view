@@ -545,3 +545,75 @@ test('configured Atom reports retain update meaning and appear in shared source 
     h.controller.destroy();
   }
 });
+
+test('saved views require explicit save/load; restore bounds and filters without acquisition or camera moves', () => {
+  const values = new Map();
+  const providerStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  const h = harness({ providerStorage });
+  const field = (h, key) => h.find((n) => n.dataset.savedView === key);
+  try {
+    h.button('MONITOR').click();
+    h.button('Use map bounds').click();
+    h.filter('keyword', 'East');
+    h.find((n) => n.dataset.filter === 'keyword').dispatchEvent(
+      new Event('input'),
+    );
+    assert.equal(values.size, 0);
+    field(h, 'name').value = 'Pacific';
+    h.button('Save/update view').click();
+    assert.equal(values.size, 1);
+    h.button('Reset filters').click();
+    assert.equal(h.rows().length, 2);
+    h.button('Load view').click();
+    assert.equal(h.rows().length, 1);
+    assert.equal(h.find((n) => n.dataset.filter === 'keyword').value, 'East');
+    assert.equal(h.requests, 0);
+    assert.deepEqual(h.searches, []);
+    assert.deepEqual(h.focused, []);
+  } finally {
+    h.controller.destroy();
+  }
+  const restored = harness({ providerStorage });
+  try {
+    restored.button('MONITOR').click();
+    assert.equal(restored.rows().length, 2);
+    assert.equal(field(restored, 'select').value, '');
+    field(restored, 'select').value = 'Pacific';
+    restored.button('Load view').click();
+    assert.equal(restored.rows().length, 1);
+    restored.button('Delete view').click();
+    assert.equal(JSON.parse([...values.values()][0]).views.length, 0);
+    assert.equal(restored.rows().length, 1);
+    assert.equal(restored.requests, 0);
+  } finally {
+    restored.controller.destroy();
+  }
+});
+test('saved view failures leave filters and stored data intact', () => {
+  const raw = JSON.stringify({ version: 2, views: [] });
+  let writes = 0;
+  const h = harness({
+    providerStorage: {
+      getItem: (key) => (key.includes('views') ? raw : null),
+      setItem() {
+        writes++;
+        throw new Error('blocked');
+      },
+    },
+  });
+  try {
+    h.button('MONITOR').click();
+    h.find((n) => n.dataset.savedView === 'name').value = 'Test';
+    h.button('Save/update view').click();
+    assert.equal(writes, 0);
+    assert.equal(h.rows().length, 2);
+    assert.ok(
+      h.find((n) => n.textContent?.includes('Unsupported saved views')),
+    );
+  } finally {
+    h.controller.destroy();
+  }
+});

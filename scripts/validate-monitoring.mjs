@@ -23,6 +23,7 @@ const focusedFiles = [
   'src/tooling/monitoringValidation.test.mjs',
   'src/tools/tool-schema-codepoints.test.mjs',
   'src/monitoring/monitoring.test.mjs',
+  'src/monitoring/savedViews.test.mjs',
   'src/ui/monitoringPanel.test.mjs',
   'src/ui/layerPanel.test.mjs',
   'src/layers/flights/ingestion.test.mjs',

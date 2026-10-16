@@ -207,3 +207,8 @@
   width: auto;
   flex: 0 0 auto;
 }
+
+.monitoring-saved-views .monitoring-help,
+.monitoring-saved-views .monitoring-actions {
+  grid-column: 1 / -1;
+}

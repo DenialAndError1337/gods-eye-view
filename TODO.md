@@ -29,7 +29,7 @@ User reported full automated validation PASS on 2026-10-16 at 18:23 Europe/Bruss
 including both allocation probes, after npm ci installed the missing Atom parser.
 Browser/live/GPU/long-session acceptance remains pending. The user authorized
 parallel feature work while performing those manual checks.
-The current bike-share increment's development-host ordinary run passed: 7,163 tests
+The current saved-view increment's development-host ordinary run passed: 7,168 tests
 passed, one skipped, zero failed. This also exercises the preceding aircraft, AIS and
 validator changes together. Allocation measurements and browser/live acceptance
 for the new cumulative source still require the user's host. Earlier failed
@@ -65,8 +65,9 @@ These are candidates, rather than promises that each will ship.
 - [ ] Optional configured-feed editing in the browser: first decide how local
       configuration is persisted and validated. Server-side HTTPS/DNS protections
       must continue to apply.
-- [ ] Saved views/regions: define an explicit opt-in storage scope and migration
-      policy; current monitoring filters are transient and excluded from share links.
+- [x] Saved filter views/regions: explicit local save/load/delete, bounded versioned
+      storage and preserved unsupported data. No automatic restore or acquisition.
+      Filters remain excluded from share links; camera/layers/results are not saved.
 - [ ] Optional ReliefWeb integration: requires an approved application identity.
       No registration has been submitted.
 - [ ] Historical archives, incident correlation, alerts and automated reports:

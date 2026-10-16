@@ -277,3 +277,21 @@ ownership. History is bounded to the registry and layer lifetime, not a durable
 archive. Missing map proximity or an unavailable provider must be recorded
 accurately. Preserve your existing results and add a dated entry for the new
 commit; this patch leaves the active results template untouched.
+
+## Saved filter views acceptance
+
+1. Open MONITOR, set a keyword, source/publisher and time window, then use map bounds.
+   Name the view and press Save/update view. Check the local-save status.
+2. Reset filters, choose the saved view and Load view. Verify controls, counts and
+   earthquake map cohort agree, including antimeridian bounds if applicable.
+   No news search, layer activation or camera movement should occur.
+3. Reload the page. Open MONITOR: default filters must remain until you explicitly
+   choose/load a saved view. A source/publisher not currently loaded can match zero.
+4. Save the same name with different filters, load it and check replacement. Delete
+   it and reload to confirm removal. Reset filters alone must preserve saved views.
+5. With device storage blocked, verify a clear failure status, usable ordinary
+   filters and no success claim. Check keyboard focus and narrow-screen scrolling.
+   Record actual observations and tested commit in VALIDATION-RESULTS.md.
+
+Saved keywords/regions stay on this device until deleted or browser storage is
+cleared. Do not store sensitive presets on a shared device unless intended.

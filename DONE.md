@@ -24,6 +24,7 @@ wording. Its “next” sections are historical; current work is in [TODO.md](TO
 | GEV_AIRCRAFT_HEALTH_UPDATE              | Aircraft snapshot-request history, scoped telemetry inventory and recorded laptop automated pass | Apply after the validation runner update; manual acceptance still pending                                 |
 | GEV_AIS_TRANSPORT_HEALTH_UPDATE         | AIS watchdog event history from server to tooltip                                                | Apply after the aircraft-health update; no dependencies or retry policy changes                           |
 | GEV_BIKESHARE_HEALTH_UPDATE             | Per-city GBFS request history and cancellation ownership                                         | Apply after the AIS transport update; no new dependencies or polling intervals                            |
+| GEV_SAVED_VIEWS_UPDATE | Explicit local filter/region presets | Apply after the bike-share health update; no new dependencies |
 
 Pinned upstream: `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
 The user reported committing the reconciled customization as `d068dcbd` and
@@ -335,6 +336,41 @@ application/resulting tree identity and local documentation links were verified.
 Allocation measurements and browser/live acceptance for the new cumulative
 source remain pending on the user's host.
 Active manual validation notes are excluded from the patch.
+
+## 14. Explicit saved filter views and regions — 2026-10-16
+
+Added named device-local save/update, load and delete controls in MONITOR. Each
+preset contains only shared loaded-record filters and optional map bounds, including
+antimeridian regions. The relative time window stays relative to now. Views never
+restore automatically; loading does not search, enable layers or move the camera.
+Reset filters preserves presets. Unloaded source/publisher filters remain selected.
+News acquisition form values, provider preferences, results, selection and camera
+state are excluded. The provider checkbox retains its separate provider-only scope.
+
+Storage is a distinct version-1 envelope, at most 12 views, 60-character names,
+120-character keywords, bounded source/publisher labels, validated finite geographic
+coordinates and a conservative 32 KiB UTF-16 payload budget. Case-insensitive matching
+names update an existing view. Reads sanitize whitelisted fields into fresh copies.
+Mutations reread storage first; malformed/unknown versions block writes and remain
+intact. No migration is needed from an earlier saved-view format; a future format
+needs an explicit migration. Storage errors cannot produce a false success message.
+Local keywords/regions and deletion behavior are explained in the interface/docs.
+
+Development verification: 29 affected tests passed, including explicit save/load,
+reload without automatic restoration, antimeridian bounds, delete, storage failures,
+limits, detached copies, whitelist exclusions and unsupported-version preservation.
+The first new UI test used a change event for the keyword input, whose existing
+handler uses input; corrected the test to dispatch the actual input event. No
+production keyword behavior was changed to accommodate the fixture.
+Cumulative ordinary suite passed: 7,169 tests, 7,168 passed, one skipped, zero
+failed (50.88 seconds), using the existing allocation partition. The default runner
+passed 475 focused tests, production build (9.83 seconds), adopted formatting,
+import/package boundaries, layer-token compatibility and whitespace. The retained
+initial focused log was incomplete despite its parsed passing summary; reran that
+gate and retained a complete 475-pass log. Patch application and resulting tree
+identity, documentation links and unchanged manual notes/history were verified.
+Browser layout/focus, GPU, live feeds and long-session acceptance remain pending on
+the user's host. Active manual validation notes are excluded from this patch.
 
 ## Updating this record
 
