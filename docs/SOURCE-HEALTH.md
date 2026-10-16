@@ -289,3 +289,21 @@ advance acceptance while an unchanged last_updated remains unchanged. Unknown
 operator time is a valid disclosed outcome, not an implicit receipt-time fallback.
 Use fixtures for malformed, missing, cancelled and failing documents. This does
 not replace native browser/live provider acceptance.
+
+## Catalog-wide inventory and CCTV maintenance time
+
+The [source inventory](SOURCE-INVENTORY.md) accounts for all 32 current catalog
+IDs and identifies manager, camera, selection, user and derived-data boundaries.
+It records source-code evidence, timestamp meanings and prioritized gaps rather
+than claiming every layer now has independent acquisition telemetry.
+
+CCTV lastUpdate advances during its existing maintenance update. That update
+checks health/geometry/auto-hop and does not establish when a frame was acquired.
+CCTV stats now mark it `lastUpdateMeaning: local-maintenance`. The shared snapshot
+retains that timestamp and meaning, but returns null ageSec and ageLabel so a
+maintenance heartbeat cannot become a source/frame-age claim for HUD/voice users.
+The layer source row says **frame age unknown**; its tooltip labels the maintenance
+time explicitly. Loading/error precedence and existing feed-state classification
+remain unchanged. ON still means the layer's existing nominal state, not a claim
+that a particular frame is recent. No frame timestamp, retry, polling interval or
+new acquisition is introduced. Catalog/health/frame histories remain follow-up work.

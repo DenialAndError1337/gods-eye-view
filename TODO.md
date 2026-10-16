@@ -29,7 +29,7 @@ User reported full automated validation PASS on 2026-10-16 at 18:23 Europe/Bruss
 including both allocation probes, after npm ci installed the missing Atom parser.
 Browser/live/GPU/long-session acceptance remains pending. The user authorized
 parallel feature work while performing those manual checks.
-The current GBFS timestamp increment's development-host ordinary run passed: 7,172 tests
+The current source-inventory increment's development-host ordinary run passed: 7,175 tests
 passed, one skipped, zero failed. This also exercises the preceding aircraft, AIS and
 validator changes together. Allocation measurements and browser/live acceptance
 for the new cumulative source still require the user's host. Earlier failed
@@ -63,8 +63,15 @@ These are candidates, rather than promises that each will ship.
 - [x] GBFS reported feed-update timestamps: retain valid numeric/RFC3339
       last_updated separately from local acceptance and station last_reported.
       Assess proxy/HTTP cache evidence without inventing upstream acquisition time.
-- [ ] Extend telemetry inventory to remaining layer families; assess station-level
-      reporting timestamps and explicit upstream acquisition evidence separately.
+- [x] Extend source-ownership inventory across all 32 current catalog IDs;
+      document direct/viewport/user acquisitions and timestamp meanings in
+      docs/SOURCE-INVENTORY.md. Mark CCTV maintenance time separately from frame age.
+- [ ] CCTV per-channel catalog/health/frame histories, including fallback imagery
+      and retired-selection ownership; maintenance timestamps are now labeled.
+- [ ] Label local/derived timestamps in remaining layers and assess military
+      snapshot history separately from general aircraft telemetry.
+- [ ] Assess station-level GBFS reporting timestamps and explicit upstream
+      acquisition evidence separately from retained feed-update claims.
 - [ ] Optional configured-feed editing in the browser: first decide how local
       configuration is persisted and validated. Server-side HTTPS/DNS protections
       must continue to apply.

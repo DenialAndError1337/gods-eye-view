@@ -543,7 +543,14 @@ export class LayerPanel {
     const cities = Array.isArray(stats.cityAcquisitionHealth)
       ? stats.cityAcquisitionHealth
       : [];
-    if (!health && !acquisition && !transport && !cities.length) return '';
+    if (
+      !health &&
+      !acquisition &&
+      !transport &&
+      !cities.length &&
+      stats.lastUpdateMeaning !== 'local-maintenance'
+    )
+      return '';
     const retry =
       Number.isFinite(stats.retryAt) && stats.retryAt > 0
         ? new Date(stats.retryAt).toISOString()
@@ -584,7 +591,9 @@ export class LayerPanel {
     const timestampLabel =
       stats.lastUpdateMeaning === 'local-acceptance'
         ? 'Layer refresh timestamp (local acceptance)'
-        : 'Source data timestamp';
+        : stats.lastUpdateMeaning === 'local-maintenance'
+          ? 'Layer maintenance timestamp (not camera frame time)'
+          : 'Source data timestamp';
     return `${manager}${source}${ais}${gbfs}${timestampLabel}: ${stamp(stats.lastUpdate)}. Source retry: ${retry}.`;
   }
 
@@ -618,7 +627,12 @@ export class LayerPanel {
     ) {
       return `${source} · ${stats.statusMessage.trim()}`;
     }
-    const ago = stats.lastUpdate ? this._timeAgo(stats.lastUpdate) : 'never';
+    const ago =
+      stats.lastUpdateMeaning === 'local-maintenance'
+        ? 'frame age unknown'
+        : stats.lastUpdate
+          ? this._timeAgo(stats.lastUpdate)
+          : 'never';
     if (stats.loading) {
       const loadingLabel =
         typeof stats.loadingLabel === 'string' && stats.loadingLabel.trim()

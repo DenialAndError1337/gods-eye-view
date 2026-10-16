@@ -310,3 +310,18 @@ cleared. Do not store sensitive presets on a shared device unless intended.
    manufacture outages. Cache MISS alone is not proof of a fresh acquisition.
 5. Record observed results and tested commit in VALIDATION-RESULTS.md, retaining
    earlier reports against their own versions.
+
+## CCTV maintenance timestamp acceptance
+
+1. Enable CCTV using the usual configuration. In a settled normal layer row, check
+   that the source line says frame age unknown; hover it and verify the timestamp
+   is labeled maintenance, not camera frame time. Loading/error messages retain
+   precedence and should still describe their actual condition.
+2. Let normal maintenance ticks pass. The tooltip maintenance time may advance,
+   while the source row must not become a newly observed-frame age claim.
+3. Select cameras, exercise normal playback/fallback/auto-hop if used, then disable
+   and re-enable. Check the existing controls and imagery still behave normally.
+   This change does not establish a per-camera freshness guarantee.
+4. Where HUD/voice source metadata is inspected, CCTV ageSec/ageLabel should be
+   unknown, with lastUpdate retained and marked local-maintenance. Record actual
+   browser/GPU/live results and the tested commit in VALIDATION-RESULTS.md.

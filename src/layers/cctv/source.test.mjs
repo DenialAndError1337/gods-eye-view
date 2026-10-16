@@ -173,3 +173,59 @@ test('frames are read through the registered frame endpoint', async () => {
   });
   await assert.rejects(failing.getFrame(camera), /Camera frame HTTP 502/);
 });
+
+test('maintenance ticks report their own clock without acquiring or dating a camera frame', async (t) => {
+  const { createIngestion } = await import('./ingestion.js');
+  const { createControls } = await import('./controls.js');
+  const { layerSnapshot } = await import('../../data/layerSnapshot.js');
+  let at = 1000,
+    healthChecks = 0;
+  t.mock.method(Date, 'now', () => at);
+  const state = {
+    _enabled: true,
+    _count: 1,
+    _lastUpdate: null,
+    _lastError: null,
+    _geoLoading: false,
+    _geoLoadDone: 0,
+    _geoLoadTotal: 0,
+    _tilesReadyReenqueued: true,
+  };
+  const parts = {
+    health: {
+      async syncHealthState() {
+        healthChecks++;
+      },
+    },
+    navigation: { maybeAutoHop() {} },
+    presentation: { notifyListeners() {} },
+  };
+  const source = {
+    getFrame() {
+      assert.fail('maintenance must not acquire a frame directly');
+    },
+  };
+  const context = {
+    state,
+    parts,
+    source,
+    services: { render: {}, activation: {} },
+  };
+  const ingestion = createIngestion(context);
+  const controls = createControls(context);
+  for (at = 1000; at <= 2000; at += 1000) {
+    await ingestion.methods.update();
+    const stats = controls.methods.getStats();
+    assert.equal(stats.lastUpdate, at);
+    assert.equal(stats.lastUpdateMeaning, 'local-maintenance');
+    const snap = layerSnapshot(
+      { id: 'cctv', enabled: true, stats },
+      { now: at + 1000 },
+    );
+    assert.equal(snap.lastUpdate, at);
+    assert.equal(snap.ageSec, null);
+    assert.equal(snap.ageLabel, null);
+    assert.equal(snap.lastUpdateMeaning, 'local-maintenance');
+  }
+  assert.equal(healthChecks, 2);
+});

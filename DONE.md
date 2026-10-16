@@ -26,6 +26,7 @@ wording. Its “next” sections are historical; current work is in [TODO.md](TO
 | GEV_BIKESHARE_HEALTH_UPDATE             | Per-city GBFS request history and cancellation ownership                                         | Apply after the AIS transport update; no new dependencies or polling intervals                            |
 | GEV_SAVED_VIEWS_UPDATE | Explicit local filter/region presets | Apply after the bike-share health update; no new dependencies |
 | GEV_GBFS_TIMESTAMP_UPDATE | Reported operator feed-update timestamps and cache-boundary assessment | Apply after the saved-views update; no new dependencies |
+| GEV_SOURCE_INVENTORY_UPDATE | Catalog-wide source inventory and CCTV maintenance/frame-age distinction | Apply after the GBFS timestamp update; no new dependencies |
 
 Pinned upstream: `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
 The user reported committing the reconciled customization as `d068dcbd` and
@@ -412,6 +413,38 @@ links and unchanged active manual notes/history were verified.
 Manual/browser/live provider and allocation acceptance for this version remain
 pending. The active validation-results file and archived implementation log are
 excluded from this increment.
+
+## 16. Catalog-wide source inventory and CCTV clock meaning — 2026-10-16
+
+Inspected catalog construction, standalone/reference provider composition and
+lifecycle/ingestion/source entry points across all 32 current catalog IDs. Added
+SOURCE-INVENTORY.md with direct/viewport/user/derived ownership, existing clock
+semantics, gaps and follow-up priorities. Monitoring news is recorded separately.
+The inventory is a source inspection, not proof of live availability, provider
+accuracy, every subrequest's security, or completed instrumentation.
+
+The inspection found CCTV lastUpdate advances on maintenance, independently of
+frame acquisition. CCTV now reports local-maintenance meaning; shared snapshots
+retain the timestamp but expose unknown source ageSec/ageLabel. The source row
+says frame age unknown and its tooltip labels maintenance time. Existing loading,
+error and feed-state precedence remain. No frame success, freshness threshold,
+polling or retry is invented; per-channel CCTV histories remain explicit backlog.
+
+Verification so far: 37 focused tests passed, including actual CCTV maintenance
+through stats and shared snapshot, no direct frame acquisition in that path,
+unknown source-age fields, whitelisted meanings and row/tooltip precedence.
+Final cumulative ordinary suite: 7,176 tests, 7,175 passed, one skipped, zero
+failed (53.51 seconds), using the existing allocation partition. Default validation
+plan passed 510 focused tests, production build, adopted formatting, import/package
+boundaries, layer-token compatibility and whitespace. Logs were captured through
+pipes and written after command settlement to retain complete output on this host;
+check arguments and policy match the default runner. No thresholds were weakened.
+Roster ID equality (32/32), all cited source paths, documentation links, patch
+application/result-tree identity and unchanged manual notes/history were verified.
+The user confirmed successful application through the preceding GBFS update;
+its laptop validation is running, and no passing result is inferred from that.
+Manual/browser/live acceptance remains pending; active validation notes and the
+archived implementation history are excluded from the patch.
 
 ## Updating this record
 

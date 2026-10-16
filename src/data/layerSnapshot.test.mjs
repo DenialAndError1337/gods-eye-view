@@ -378,3 +378,23 @@ test('GBFS city histories copy both channels and retain explicit local timestamp
   assert.equal(city.information.lastAccepted, 9000);
   assert.equal(city.status.lastAccepted, 10000);
 });
+
+test('maintenance timestamps never become source-age claims; unknown meanings retain legacy behavior', () => {
+  const snapshot = (meaning) =>
+    layerSnapshot(
+      {
+        id: 'fixture',
+        enabled: true,
+        stats: { lastUpdate: 1000, lastUpdateMeaning: meaning },
+      },
+      { now: 12000 },
+    );
+  const maintenance = snapshot('local-maintenance');
+  assert.equal(maintenance.lastUpdate, 1000);
+  assert.equal(maintenance.ageSec, null);
+  assert.equal(maintenance.ageLabel, null);
+  assert.equal(maintenance.lastUpdateMeaning, 'local-maintenance');
+  assert.equal(snapshot('local-acceptance').ageSec, 11);
+  assert.equal(snapshot('unrecognized').ageSec, 11);
+  assert.equal('lastUpdateMeaning' in snapshot('unrecognized'), false);
+});

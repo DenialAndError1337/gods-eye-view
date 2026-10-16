@@ -142,6 +142,9 @@ export function layerSnapshot(layer = {}, { now = Date.now() } = {}) {
     ? Number(stats.lastUpdate)
     : null;
   const feedState = enabled ? layerFeedState({ ...stats, source }) : 'off';
+  // A local maintenance heartbeat cannot establish source/frame age.
+  const ageTimestamp =
+    stats.lastUpdateMeaning === 'local-maintenance' ? null : lastUpdate;
   return {
     id: layer.id || layer.layerKey || null,
     name: layer.name || layer.label || layer.id || layer.layerKey || null,
@@ -150,8 +153,8 @@ export function layerSnapshot(layer = {}, { now = Date.now() } = {}) {
     source,
     count,
     lastUpdate,
-    ageSec: snapshotAgeSec(lastUpdate, now),
-    ageLabel: snapshotAgeLabel(lastUpdate, now),
+    ageSec: snapshotAgeSec(ageTimestamp, now),
+    ageLabel: snapshotAgeLabel(ageTimestamp, now),
     error: snapshotError(stats),
     ...(Number.isFinite(stats.retryAt) && stats.retryAt > 0
       ? { retryAt: stats.retryAt }
@@ -180,8 +183,10 @@ export function layerSnapshot(layer = {}, { now = Date.now() } = {}) {
           })),
         }
       : {}),
-    ...(stats.lastUpdateMeaning === 'local-acceptance'
-      ? { lastUpdateMeaning: 'local-acceptance' }
+    ...(['local-acceptance', 'local-maintenance'].includes(
+      stats.lastUpdateMeaning,
+    )
+      ? { lastUpdateMeaning: stats.lastUpdateMeaning }
       : {}),
   };
 }

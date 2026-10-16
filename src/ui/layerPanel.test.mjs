@@ -427,3 +427,36 @@ test('GBFS tooltip separates reported feed update from acceptance and station ti
   );
   assert.match(title, /Operator feed time is not station last_reported/);
 });
+
+test('CCTV maintenance heartbeat is never presented as a recent camera frame', async () => {
+  const { LayerPanel } = await import('./layerPanel.js');
+  const panel = LayerPanel.prototype;
+  const layer = {
+    id: 'cctv',
+    enabled: true,
+    source: 'Fixture cameras',
+    stats: { lastUpdate: 1000, lastUpdateMeaning: 'local-maintenance' },
+  };
+  assert.equal(
+    panel._buildMetaText(layer),
+    'Fixture cameras · frame age unknown',
+  );
+  assert.match(
+    panel._buildHealthTitle(layer),
+    /Layer maintenance timestamp \(not camera frame time\): 1970-01-01T00:00:01.000Z/,
+  );
+  assert.match(
+    panel._buildMetaText({
+      ...layer,
+      stats: { ...layer.stats, loading: true },
+    }),
+    /loading/,
+  );
+  assert.match(
+    panel._buildMetaText({
+      ...layer,
+      stats: { ...layer.stats, error: 'fixture outage' },
+    }),
+    /fixture outage/,
+  );
+});

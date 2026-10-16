@@ -240,6 +240,7 @@ export function createControls({ state: layerState, services, parts, source }) {
       return {
         count: layerState._count,
         lastUpdate: layerState._lastUpdate,
+        lastUpdateMeaning: 'local-maintenance',
         error: layerState._lastError,
         loading: layerState._geoLoading,
         loadingLoaded: Math.min(
