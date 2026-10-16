@@ -474,3 +474,21 @@ test('news client bounds configured feed freshness without restamping cached acq
   assert.equal(state.freshnessMs, 300000);
   invalid.destroy();
 });
+
+test('Atom per-entry publication/update semantics survive projection without turning updates into publication', () => {
+  for (const meaning of [
+    'Publication (Atom)',
+    'Update (Atom)',
+    'Publication/update (Atom)',
+  ]) {
+    const payload = {
+      ...report(),
+      newsSource: 'Configured Atom · World feed',
+      newsTimeMeaning: 'Publication/update (Atom)',
+    };
+    payload.articles[0].timestampMeaning = meaning;
+    const [row] = newsEvents(payload);
+    assert.equal(row.timeMeaning, meaning);
+    assert.equal(row.coordinates, null);
+  }
+});

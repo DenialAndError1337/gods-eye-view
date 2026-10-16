@@ -1,6 +1,6 @@
 # Monitoring milestones
 
-Latest work: see **Configured RSS source inventory** below.
+Latest work: see **Atom feeds and shared source filtering** below.
 
 ## Milestone 1 — implementation and verification snapshot
 
@@ -293,3 +293,37 @@ credentials, new dependencies, registrations, scheduled polling or public
 deployment were added. Canonical publisher verification, Atom/browser source
 editing, broader syndication analysis and independent-source telemetry remain
 follow-up work. No unmerged upstream PR is treated as an implemented feature.
+
+## Atom feeds and shared source filtering (2026-10-16)
+
+Increment based on configured-RSS tree
+`45bc750e1187e27cf18a29281d811bfc54f8882e`. Apply after
+`GEV_CONFIGURED_RSS_UPDATE` on the existing `gev/osint-dashboard` branch.
+Upstream remains pinned at `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
+
+Configured feed parsing now handles RSS and Atom 1.0 using a pinned server-side
+XML parser. Atom default/prefixed namespaces, alternate article links, relative
+URLs/xml:base and plain-text title constructs are supported. Valid publication
+times take precedence; update-only dates are explicitly labelled updates. Missing
+and invalid times remain unknown. Loaded custom feeds now appear in the shared
+Source filter. Existing inventory IDs, source spacing, stale-cache provenance and
+explicit acquisition are retained.
+
+| Work                                    | Status                        | Evidence                                                                                                                                                                               |
+| --------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Atom namespace, title and article links | Pass                          | Tests cover default/prefixed namespaces, HTML/XHTML text, xml:base, relative links and no ID/self/enclosure fallback                                                                   |
+| Timestamp provenance                    | Pass                          | Published versus updated and unknown/invalid calendar/zone tests, client projection and real UI controller labels                                                                      |
+| Strict XML and resource bounds          | Pass                          | Malformed XML, DTD/entity, depth/tag/body/link limits and valid-empty fixtures                                                                                                         |
+| Existing RSS/cache behavior             | Pass                          | Configured RSS fixtures plus source cache, cooldown, stale/time and request regressions                                                                                                |
+| Loaded custom-source filters            | Pass (controller)             | Configured Atom source appears in shared filter and switches to USGS without additional requests                                                                                       |
+| Focused tests                           | Pass                          | 53 passed, zero failures                                                                                                                                                               |
+| Full suite, build and quality gates     | Pass                          | 7,134 ordinary tests: 7,133 passed, 1 skipped, zero failures; 51.74 seconds. Build 849 modules/12.52 seconds; format 1,409 files; boundaries; 31 published/zero new tokens; diff check |
+| Local Atom endpoint smoke               | Pass                          | HTTP 200 through real news middleware, configured Atom source, update-only projection remains Update (Atom), coordinates null; fixture transport only                                  |
+| Dependency install                      | Pass (isolated smoke)         | npm ci of the pinned parser passed; installed version/integrity matches project lockfile. Full application npm ci remains an installation step for the user                            |
+| Browser/GPU/live feeds                  | Needs follow-up               | No new browser, GPU, prolonged-session or operator-feed availability claim                                                                                                             |
+| Allocation measurements                 | Needs follow-up (environment) | Previous memory-measurement host limitation unchanged; thresholds untouched                                                                                                            |
+
+Documentation: `docs/CONFIGURED-RSS.md`. Remaining: evidence-backed canonical
+publisher URLs, optional browser inventory editing, broader syndication analysis,
+independent-source telemetry and outstanding runtime acceptance. No new provider
+account, automatic polling, public deployment or upstream sync was introduced.

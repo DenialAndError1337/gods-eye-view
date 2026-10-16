@@ -185,7 +185,7 @@ export function createMonitoringPanel({
         const option = make(
           'option',
           queryProvider,
-          `${feed.label} (configured RSS)`,
+          `${feed.label} (configured feed)`,
         );
         option.value = `rss:${feed.id}`;
       }
@@ -197,8 +197,8 @@ export function createMonitoringPanel({
       }
       inventoryLoaded = true;
       inventoryStatus.textContent = feeds.length
-        ? `${feeds.length} configured RSS feed(s) available. RSS loads recent items; topic is not applied. Phrase/region match headlines only.`
-        : 'No custom RSS feeds configured. Built-in providers remain available.';
+        ? `${feeds.length} configured RSS/Atom feed(s) available. RSS/Atom loads recent items; topic is not applied. Phrase/region match headlines only.`
+        : 'No custom feeds configured. Built-in providers remain available.';
     } catch {
       if (!destroyed && !request.signal.aborted && inventoryRequest === request)
         inventoryStatus.textContent =
@@ -307,6 +307,7 @@ export function createMonitoringPanel({
     ],
     'source',
   );
+  let sourceSignature = '';
   const hours = select(
     'Time window',
     [
@@ -431,6 +432,30 @@ export function createMonitoringPanel({
         ? 'stale'
         : newsState.status;
     category.value = f.category;
+    const sourceNames = [
+      ...new Set([
+        'USGS',
+        'Google News RSS',
+        'GDELT fallback',
+        'GDELT',
+        ...view.all.map((row) => row.source).filter(Boolean),
+      ]),
+    ];
+    if (f.source !== 'all' && !sourceNames.includes(f.source))
+      sourceNames.push(f.source);
+    const sourcesKey = sourceNames.join('\n');
+    if (sourcesKey !== sourceSignature) {
+      sourceSignature = sourcesKey;
+      for (const child of [...source.children]) child.remove();
+      for (const name of ['all', ...sourceNames]) {
+        const option = make(
+          'option',
+          source,
+          name === 'all' ? 'All sources' : name,
+        );
+        option.value = name;
+      }
+    }
     source.value = f.source;
     hours.value = String(f.hours);
     keyword.value = f.keyword;

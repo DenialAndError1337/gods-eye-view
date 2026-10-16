@@ -122,3 +122,12 @@ phrase/region text matches headlines. Publication time and cache freshness stay
 explicit. The opt-in provider preference can remember a configured feed ID only
 after that ID is validated against the current inventory. See
 [CONFIGURED-RSS.md](CONFIGURED-RSS.md) for setup and limits.
+
+## Atom feeds and custom-source filters
+
+Configured feed XML is detected as RSS or Atom 1.0. Atom `published` dates are
+labelled publication; update-only entries are labelled **Update (Atom)**. Missing
+or invalid entry times stay unknown. Source filters include loaded configured
+feeds. The existing feed selector, remembered provider IDs, explicit search,
+cache age and headline-filter semantics remain unchanged. Install the new pinned
+XML dependency with `npm ci` after applying the Atom update.

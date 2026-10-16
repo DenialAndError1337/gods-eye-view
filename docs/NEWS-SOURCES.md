@@ -135,3 +135,13 @@ format and transport limits, per-feed refresh intervals and provenance. No custo
 feed is enabled by default, and no feed's current availability or licence is
 asserted. This is recent-feed acquisition; geopolitical topic indexing, Atom and
 a browser source editor are not part of the increment.
+
+## Atom configured feeds (2026-10-16)
+
+The same local inventory now accepts Atom 1.0 feeds with no ID/schema migration.
+The server XML parser handles namespaces and article-link attributes, and the
+monitoring projection keeps Atom publication and update timestamps distinct.
+Loaded RSS/Atom sources now appear in the shared Source filter. Existing cache,
+request-spacing, destination and acquisition limits remain in place. Run `npm ci`
+after installing this increment. See `CONFIGURED-RSS.md` for supported links,
+dates and format limits. Canonical publisher verification remains separate work.

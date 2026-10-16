@@ -7,6 +7,7 @@ import { createMonitoringPanel } from './monitoringPanel.js';
 function harness({
   providerStorage = null,
   newsArticles = null,
+  newsPayload = null,
   inventoryService = null,
 } = {}) {
   const f = railFixture();
@@ -110,21 +111,23 @@ function harness({
       },
       async getBrief() {
         requests++;
-        return {
-          status: 'ready',
-          newsStatus: 'ready',
-          newsSource: 'Google News RSS',
-          retrievedAt: new Date().toISOString(),
-          newsQuery: 'Test region',
-          articles: newsArticles || [
-            {
-              title: '<script>Unsafe-looking headline is text</script>',
-              domain: 'Publisher',
-              url: 'https://news.google.com/rss/articles/test',
-              publishedAt: null,
-            },
-          ],
-        };
+        return (
+          newsPayload || {
+            status: 'ready',
+            newsStatus: 'ready',
+            newsSource: 'Google News RSS',
+            retrievedAt: new Date().toISOString(),
+            newsQuery: 'Test region',
+            articles: newsArticles || [
+              {
+                title: '<script>Unsafe-looking headline is text</script>',
+                domain: 'Publisher',
+                url: 'https://news.google.com/rss/articles/test',
+                publishedAt: null,
+              },
+            ],
+          }
+        );
       },
     },
   });
@@ -496,6 +499,48 @@ test('cancelled inventory cannot publish late options; user provider changes win
     assert.equal(provider.value, 'gdelt');
     assert.equal(provider.children.length, 4);
     assert.equal(h.searches.length, 0);
+  } finally {
+    h.controller.destroy();
+  }
+});
+
+test('configured Atom reports retain update meaning and appear in shared source filters', async () => {
+  const name = 'Configured Atom · World feed';
+  const h = harness({
+    newsPayload: {
+      status: 'ready',
+      newsStatus: 'ready',
+      newsSource: name,
+      newsTimeMeaning: 'Publication/update (Atom)',
+      retrievedAt: new Date().toISOString(),
+      articles: [
+        {
+          title: 'Updated diplomacy report',
+          url: 'https://publisher.example/atom',
+          domain: 'publisher.example',
+          publishedAt: new Date().toISOString(),
+          timestampMeaning: 'Update (Atom)',
+        },
+      ],
+    },
+  });
+  try {
+    h.button('MONITOR').click();
+    h.button('News at map center').click();
+    await new Promise((resolve) => setImmediate(resolve));
+    const source = h.find((n) => n.dataset.filter === 'source');
+    assert.ok(source.children.some((option) => option.value === name));
+    h.filter('source', name);
+    assert.equal(h.rows().length, 1);
+    h.rows()[0].children[0].click();
+    assert.ok(
+      h.find(
+        (n) => n.dataset.lineId && n.textContent.startsWith('Update (Atom):'),
+      ),
+    );
+    h.filter('source', 'USGS');
+    assert.equal(h.rows().length, 2);
+    assert.equal(h.requests, 1);
   } finally {
     h.controller.destroy();
   }

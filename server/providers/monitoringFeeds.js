@@ -4,7 +4,7 @@ import { Readable } from 'node:stream';
 import { isIP } from 'node:net';
 import { isPublicRadioAddress } from './radio/transport.js';
 import { readResponseTextCapped } from './common/http.js';
-import { normalizeRssArticles } from './regional/news.js';
+import { parseConfiguredFeed } from './monitoringFeedXml.js';
 
 /** Local operator inventory, never a browser-supplied destination. */
 export function configuredNewsFeeds(value = '') {
@@ -65,7 +65,8 @@ function pinnedRequest(url, addresses, signal) {
         method: 'GET',
         signal,
         headers: {
-          Accept: 'application/rss+xml, application/xml, text/xml',
+          Accept:
+            'application/rss+xml, application/atom+xml, application/xml, text/xml',
           'Accept-Encoding': 'identity',
           'User-Agent': 'GodsEyeView-Monitoring/1.0',
         },
@@ -154,19 +155,6 @@ export async function readConfiguredNewsFeed(
   }
 }
 
-function validRss(xml) {
-  return (
-    typeof xml === 'string' &&
-    /<rss(?:\s|>)/i.test(xml) &&
-    /<channel(?:\s|>)/i.test(xml) &&
-    /<\/rss\s*>/i.test(xml) &&
-    /<\/channel\s*>/i.test(xml) &&
-    !/<!DOCTYPE|<!ENTITY/i.test(xml) &&
-    [...xml.matchAll(/<item(?:\s|>)/gi)].length ===
-      [...xml.matchAll(/<\/item\s*>/gi)].length
-  );
-}
-
 /** Per-feed acquisition spacing and cache are shared across headline-query variants. */
 export function configuredFeedReader({
   readFeed = readConfiguredNewsFeed,
@@ -193,8 +181,8 @@ export function configuredFeedReader({
     entry.pending = Promise.resolve()
       .then(() => readFeed(feed))
       .then((xml) => {
-        if (!validRss(xml)) throw new Error('Unsupported RSS response');
-        entry.value = { xml, fetchedAt: now() };
+        const parsed = parseConfiguredFeed(xml, feed.url);
+        entry.value = { xml, parsed, fetchedAt: now() };
         return { ...entry.value, stale: false };
       })
       .catch(fallback)
@@ -215,12 +203,12 @@ export async function fetchConfiguredNews(
   if (!feed) throw new Error('Unknown configured feed');
   const result = await readFeed(feed);
   const xml = result.xml;
-  if (!validRss(xml)) throw new Error('Unsupported RSS response');
+  const parsed = result.parsed || parseConfiguredFeed(xml, feed.url);
   const terms = [query.keywords, query.region]
     .filter(Boolean)
     .map((term) => term.toLowerCase());
   const clock = now();
-  const articles = normalizeRssArticles(xml, 250)
+  const articles = parsed.articles
     .filter(
       (row) =>
         (!row.publishedAt ||
@@ -234,8 +222,11 @@ export async function fetchConfiguredNews(
     stale: result.stale,
     freshForMs: feed.refreshMinutes * 60000,
     retrievedAt: new Date(result.fetchedAt).toISOString(),
-    source: `Configured RSS · ${feed.label}`,
-    timeMeaning: 'Publication (RSS)',
-    queryLabel: `RSS ${feed.label} · latest feed items; topic not applied${terms.length ? ' · phrase/region headline filters' : ''}`,
+    source: `Configured ${parsed.format} · ${feed.label}`,
+    timeMeaning:
+      parsed.format === 'Atom'
+        ? 'Publication/update (Atom)'
+        : 'Publication (RSS)',
+    queryLabel: `${parsed.format} ${feed.label} · latest feed items; topic not applied${terms.length ? ' · phrase/region headline filters' : ''}`,
   };
 }
