@@ -1,3 +1,4 @@
+import { monitoringNewsProxy } from './monitoringNews.js';
 import { openSkyProxy } from './aircraft/opensky.js';
 import { celestrakProxy, rocketLaunchesProxy } from './space.js';
 import { tomtomProxy } from './traffic.js';
@@ -44,6 +45,7 @@ function localProviderPlugins({ realtime } = {}) {
     overpassProxy(),
     militaryInstallationsProxy(),
     regionalBriefProxy(),
+    monitoringNewsProxy(),
     geocodeProxy(),
     weatherEffectsProxy(),
     cctvProxy({ sourceRoot: defaultSourceRoot }),

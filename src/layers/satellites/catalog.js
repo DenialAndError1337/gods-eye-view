@@ -1,3 +1,4 @@
+import { catalogHealth } from './health.js';
 import * as Cesium from 'cesium';
 import { twoline2satrec } from 'satellite.js';
 import {
@@ -162,6 +163,14 @@ export function createCatalog({ state: layerState, services, parts, source }) {
 
       layerState._count = layerState._points.size;
       layerState._catalogRevision++;
+      layerState._denseHealth = catalogHealth([
+        {
+          path: DENSE_GROUP_PATH,
+          ok: true,
+          stale: res.stale,
+          fetchedAt: res.fetchedAt,
+        },
+      ]);
       layerState._denseStatus = 'ready';
       console.log(
         `[Data:Satellites] Dense catalog: +${added} ${DENSE_GROUP_PATH} (points only)`,
@@ -208,6 +217,7 @@ export function createCatalog({ state: layerState, services, parts, source }) {
   /** Remove all dense extras (catalog entries, points, tracking if needed). */
 
   function _removeDenseCatalog() {
+    layerState._denseHealth = null;
     layerState._denseLoadController?.abort();
     layerState._denseLoadController = null;
     layerState._denseLoadToken++; // cancel any in-flight dense load

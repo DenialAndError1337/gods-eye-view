@@ -3,7 +3,7 @@ export function normalizeEarthquakeSnapshot(geojson) {
   if (!Array.isArray(geojson?.features)) return null;
   const rows = [];
   const ids = new Set();
-  for (const [index, feature] of geojson.features.entries()) {
+  for (const feature of geojson.features) {
     const coordinates = feature?.geometry?.coordinates;
     const properties = feature?.properties;
     if (
@@ -30,7 +30,7 @@ export function normalizeEarthquakeSnapshot(geojson) {
     if (mag == null || mag < 2.5) continue;
     const stableId =
       feature.id == null || feature.id === ''
-        ? `event-${index + 1}`
+        ? `event-${lon}:${lat}:${properties.time ?? 'unknown'}:${mag}:${depthKm ?? 'unknown'}`
         : String(feature.id);
     if (ids.has(stableId)) return null;
     ids.add(stableId);
@@ -43,6 +43,7 @@ export function normalizeEarthquakeSnapshot(geojson) {
       mag,
       place: typeof properties.place === 'string' ? properties.place : null,
       time: Number.isFinite(properties.time) ? properties.time : null,
+      url: typeof properties.url === 'string' ? properties.url : null,
     });
   }
   return rows;

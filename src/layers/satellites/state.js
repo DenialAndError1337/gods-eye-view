@@ -35,6 +35,9 @@ export function createState({ services }) {
   state._count = 0;
 
   state._lastUpdate = null;
+  state._lastAttempt = null;
+  state._coreHealth = null;
+  state._denseHealth = null;
 
   /** @type {string|null} Surfaced feed error (e.g. CelesTrak outage) for the layer chip. */
 

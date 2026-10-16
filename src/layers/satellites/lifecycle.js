@@ -24,6 +24,10 @@ export function createLifecycle({
       layerState._orbitPaths = new Map();
       layerState._count = 0;
       layerState._lastUpdate = null;
+      layerState._lastAttempt = null;
+      layerState._lastError = null;
+      layerState._coreHealth = null;
+      layerState._denseHealth = null;
       layerState._trackedNorad = null;
       parts.tracking._cancelPendingTrackingRestore();
       layerState._trackedEntity = null;
@@ -162,7 +166,10 @@ export function createLifecycle({
       layerState._rowControlsListener = null;
       layerState._count = 0;
       layerState._lastUpdate = null;
+      layerState._lastAttempt = null;
       layerState._lastError = null;
+      layerState._coreHealth = null;
+      layerState._denseHealth = null;
       layerState._lastFocusUpdate = 0;
       layerState._activeFocusCount = 0;
       layerState._trackingRefreshEpoch += 1;

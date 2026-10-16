@@ -1,3 +1,4 @@
+import { satelliteHealthStats } from './health.js';
 import {
   tallySatelliteClasses,
   satelliteClassLabel,
@@ -520,6 +521,14 @@ export function createControls({ state: layerState, services, parts, source }) {
             params: { catalog: active ? 'core' : 'dense' },
           },
         ],
+        infoText: satelliteHealthStats(layerState).stale
+          ? 'TLE cache fallback'
+          : 'TLE cache provenance',
+        infoTitle: (() => {
+          const stats = satelliteHealthStats(layerState);
+          const stamp = (at) => (at ? new Date(at).toISOString() : 'unknown');
+          return `Core attempt: ${stamp(stats.lastAttempt)}; core accepted: ${stamp(stats.lastSuccess)}; oldest cache acquisition: ${stamp(stats.cacheFetchedAt)}. Cache acquisition is not the TLE epoch. ${stats.error || ''}`;
+        })(),
         legend: satelliteClassLegend(_classTally()),
       };
     },
@@ -539,14 +548,7 @@ export function createControls({ state: layerState, services, parts, source }) {
       return {
         count: layerState._count,
         lastUpdate: layerState._lastUpdate,
-        stale: false,
-        status:
-          layerState._lastError === 'CelesTrak unreachable'
-            ? 'unavailable'
-            : layerState._lastError
-              ? 'degraded'
-              : 'nominal',
-        error: layerState._lastError,
+        ...satelliteHealthStats(layerState),
       };
     },
   };

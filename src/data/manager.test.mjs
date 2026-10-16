@@ -3492,3 +3492,59 @@ test('refreshLayerStats reaches presentation through the bare lifecycle', async 
   lifecycle.refreshLayerStats();
   assert.deepEqual(changes, ['status']);
 });
+
+
+test('manager refresh history separates attempts, completion, retained success and degraded data', async () => {
+  const mgr = new DataLayerManager({});
+  let status = 'nominal';
+  let result = true;
+  mgr.register({ id: 'health', name: 'Health', source: 'fixture', updateInterval: -1,
+    init() {}, enable() {}, disable() {}, update() { return result; },
+    getStats: () => ({ count: 2, lastUpdate: 123, status }),
+  });
+  const health = () => mgr.getAll()[0].stats.refreshHealth;
+  assert.deepEqual(health(), { lastAttempt: null, lastCompletion: null, lastSuccess: null, outcome: 'never' });
+  await mgr.setEnabled('health', true);
+  assert.equal(health().outcome, 'completed');
+  assert.ok(health().lastAttempt > 0);
+  assert.ok(health().lastSuccess >= health().lastAttempt);
+  const success = health().lastSuccess;
+  for (const value of ['stale', 'partial', 'fallback', 'degraded', 'unavailable']) {
+    status = value;
+    await mgr.refreshLayer('health');
+    assert.equal(health().outcome, value === 'unavailable' ? 'failed' : 'degraded');
+    assert.equal(health().lastSuccess, success);
+    assert.equal(mgr.getAll()[0].stats.lastUpdate, 123, 'manager never restamps source age');
+  }
+  status = 'nominal'; result = false;
+  await mgr.refreshLayer('health');
+  assert.equal(health().outcome, 'failed');
+  assert.equal(health().lastSuccess, success);
+  const copy = health(); copy.outcome = 'tampered';
+  assert.equal(health().outcome, 'failed', 'presentation cannot mutate internal history');
+  await mgr.setEnabled('health', false);
+  const before = health();
+  assert.equal(await mgr.refreshLayer('health'), false);
+  assert.deepEqual(health(), before, 'skipped updates do not become attempts');
+});
+
+test('cancelled refresh cannot overwrite history when a newer refresh completes', async () => {
+  const mgr = new DataLayerManager({});
+  let release;
+  mgr.register({ id: 'health', name: 'Health', source: 'fixture', updateInterval: -1,
+    init() {}, enable() {}, disable() {}, update() {}, getStats: () => ({ count: 1 }),
+  });
+  await mgr.setEnabled('health', true);
+  const entry = mgr.layers.get('health');
+  entry.module.update = () => new Promise(resolve => { release = resolve; });
+  const pending = mgr.refreshLayer('health');
+  assert.equal(mgr.getAll()[0].stats.refreshHealth.outcome, 'pending');
+  mgr._invalidateRefresh('health', entry);
+  assert.equal(mgr.getAll()[0].stats.refreshHealth.outcome, 'cancelled');
+  entry.module.update = () => true;
+  await mgr.refreshLayer('health');
+  const settled = mgr.getAll()[0].stats.refreshHealth;
+  release(false); await pending;
+  assert.deepEqual(mgr.getAll()[0].stats.refreshHealth, settled);
+  await mgr.setEnabled('health', false);
+});

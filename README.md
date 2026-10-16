@@ -56,6 +56,7 @@ Start with the included data sources, then add your own. Each layer is a separat
 
 ## 🎛️ What This Thing Does
 
+- **📰 Monitoring:** Open **MONITOR** for a shared earthquake/news list, geopolitical topic search, keyword/publisher filters and source-linked details alongside the globe. Regional news stays unlocated unless supported by evidence. [Monitoring guide](docs/MONITORING.md).
 - **🛩️ Cockpit view:** Ride inside a tracked flight — the camera holds the terrain under you all the way down.
 - **📡 Contacts:** A 250 km roster of everything near your target — step through live aircraft and drop into any cockpit.
 - **🎯 Click-to-track anything:** Camera locks on, draws a fading trail, surfaces full metadata — and a tracked fire or vessel hands you off to the nearest live camera in one click.
@@ -662,3 +663,5 @@ One heads-up from the inside: build in this space for a week and you learn that 
 **🌐 God's Eye View. No place left behind.**
 
 </div>
+
+Satellite cache provenance and source-health semantics: [SOURCE-HEALTH.md](docs/SOURCE-HEALTH.md).

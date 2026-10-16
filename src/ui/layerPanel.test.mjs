@@ -286,3 +286,26 @@ test('the Weather readout receives enabled air-quality alongside weather layers'
     ],
   );
 });
+
+test('layer health details separate manager completion, source age and reported retry', async () => {
+  const { LayerPanel } = await import('./layerPanel.js');
+  const layer = {
+    stats: {
+      lastUpdate: 1000,
+      retryInSec: 30,
+      refreshHealth: {
+        outcome: 'failed',
+        lastAttempt: 9000,
+        lastCompletion: 10000,
+        lastSuccess: null,
+      },
+    },
+  };
+  const title = LayerPanel.prototype._buildHealthTitle(layer);
+  assert.match(title, /Manager update: failed/);
+  assert.match(title, /last successful completion unknown/);
+  assert.match(title, /Source data timestamp: 1970-01-01T00:00:01.000Z/);
+  assert.match(title, /Source retry: 30s remaining/);
+  assert.match(title, /does not establish upstream freshness/);
+  assert.equal(LayerPanel.prototype._buildHealthTitle({}), '');
+});

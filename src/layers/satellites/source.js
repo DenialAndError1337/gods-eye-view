@@ -22,7 +22,17 @@ export function createSatelliteSource({
       // The proxy serves its last copy, marked STALE-ERROR, when CelesTrak
       // is down.
       const stale = response.headers?.get?.('x-tle-cache') === 'STALE-ERROR';
-      return { ok: response.ok, status: response.status, text, stale };
+      const rawAt = response.headers?.get?.('x-tle-fetched-at');
+      const at = rawAt ? Number(rawAt) : NaN;
+      const fetchedAt =
+        Number.isFinite(at) && at > 0 && at <= Date.now() ? at : null;
+      return {
+        ok: response.ok,
+        status: response.status,
+        text,
+        stale,
+        fetchedAt,
+      };
     },
   };
 }

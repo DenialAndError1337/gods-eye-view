@@ -90,7 +90,15 @@ test('layerFeedState matches the chip classifier for every honesty class', () =>
 test('chip labels and severity cover every feed-state the envelope can emit', () => {
   assert.deepEqual(
     [...LAYER_FEED_STATES],
-    ['nominal', 'loading', 'degraded', 'stale', 'fallback', 'unavailable'],
+    [
+      'nominal',
+      'loading',
+      'degraded',
+      'partial',
+      'stale',
+      'fallback',
+      'unavailable',
+    ],
   );
   assert.deepEqual([...SNAPSHOT_FEED_STATES], [...LAYER_FEED_STATES, 'off']);
   for (const state of LAYER_FEED_STATES) {
@@ -257,4 +265,52 @@ test('age labels match the Data Layers meta clock', () => {
   assert.equal(snapshotAgeLabel(NOW - 12_000, NOW), '12s ago');
   assert.equal(snapshotAgeLabel(NOW - 240_000, NOW), '4m ago');
   assert.equal(snapshotAgeLabel(NOW - 7_200_000, NOW), '2h ago');
+});
+
+test('enabled partial sources remain partial in aggregate provenance, including mixed nominal cohorts', () => {
+  const row = layerSnapshot({
+    id: 'partial-feed',
+    enabled: true,
+    stats: { count: 3, partial: true },
+  });
+  const nominal = layerSnapshot({
+    id: 'good',
+    enabled: true,
+    stats: { count: 2 },
+  });
+  assert.equal(feedProvenanceEnvelope([row]).overall, 'partial');
+  const envelope = feedProvenanceEnvelope([row, nominal]);
+  assert.equal(envelope.overall, 'partial');
+  assert.match(envelope.note, /PARTIAL/);
+  assert.doesNotMatch(envelope.note, /is off/);
+});
+
+test('snapshot preserves refresh history without using it as source data age', () => {
+  const health = {
+    lastAttempt: 9000,
+    lastCompletion: 10000,
+    lastSuccess: 7000,
+    outcome: 'failed',
+  };
+  const snapshot = layerSnapshot(
+    {
+      id: 'fixture',
+      enabled: true,
+      stats: { lastUpdate: 1000, refreshHealth: health },
+    },
+    { now: 11000 },
+  );
+  assert.equal(snapshot.ageSec, 10);
+  assert.deepEqual(snapshot.refreshHealth, health);
+  snapshot.refreshHealth.outcome = 'changed';
+  assert.equal(health.outcome, 'failed');
+});
+
+test('snapshot carries only explicitly reported finite retry metadata', () => {
+  const row = { enabled: true, stats: { retryAt: 9000, retryInSec: 3 } };
+  assert.equal(layerSnapshot(row).retryAt, 9000);
+  assert.equal(layerSnapshot(row).retryInSec, 3);
+  const unknown = layerSnapshot({ stats: { retryAt: NaN, retryInSec: -1 } });
+  assert.equal(unknown.retryAt, undefined);
+  assert.equal(unknown.retryInSec, undefined);
 });

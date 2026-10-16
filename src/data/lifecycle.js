@@ -137,6 +137,12 @@ export class LayerLifecycle {
       refreshing: false,
       refreshEpoch: 0,
       managerRefreshError: null,
+      refreshHealth: {
+        lastAttempt: null,
+        lastCompletion: null,
+        lastSuccess: null,
+        outcome: 'never',
+      },
       // `enabled` is authoritative settled visibility. Awaited lifecycle work
       // is reported separately so callers never mistake activation for ON or
       // teardown for OFF before the transaction settles.
@@ -250,6 +256,43 @@ export class LayerLifecycle {
       loading: lifecycleLoading || moduleStats.loading === true,
       refreshing: entry.refreshing || moduleStats.refreshing === true,
       managerRefreshError: entry.managerRefreshError,
+      refreshHealth: { ...entry.refreshHealth },
+    };
+  }
+
+  _beginRefreshHealth(entry) {
+    entry.refreshHealth = {
+      ...entry.refreshHealth,
+      lastAttempt: Date.now(),
+      outcome: 'pending',
+    };
+  }
+
+  _settleRefreshHealth(entry, outcome) {
+    if (outcome === 'completed') {
+      const stats = this._moduleStats(entry);
+      const status = String(stats.status || '').toLowerCase();
+      if (
+        ['unavailable', 'offline', 'down', 'error'].includes(status) ||
+        stats.sourceUnavailable === true
+      )
+        outcome = 'failed';
+      else if (
+        stats.stale === true ||
+        stats.partial === true ||
+        stats.degraded === true ||
+        stats.fallback === true ||
+        stats.mode === 'sim' ||
+        ['stale', 'degraded', 'partial', 'fallback'].includes(status)
+      )
+        outcome = 'degraded';
+    }
+    const completedAt = Date.now();
+    entry.refreshHealth = {
+      ...entry.refreshHealth,
+      lastCompletion: completedAt,
+      ...(outcome === 'completed' ? { lastSuccess: completedAt } : {}),
+      outcome,
     };
   }
 
@@ -259,6 +302,7 @@ export class LayerLifecycle {
     entry.refreshEpoch += 1;
     entry.refreshing = false;
     if (wasRefreshing) {
+      this._settleRefreshHealth(entry, 'cancelled');
       this._publishActivity({ type: 'status' });
       this._notifyListeners({
         type: 'refresh-cancelled',
@@ -281,6 +325,7 @@ export class LayerLifecycle {
       return false;
     const refreshEpoch = ++entry.refreshEpoch;
     entry.refreshing = true;
+    this._beginRefreshHealth(entry);
     this._publishActivity({ type: 'status' });
     this._notifyListeners({
       type: 'refresh-transition',
@@ -315,6 +360,7 @@ export class LayerLifecycle {
         entry.refreshEpoch === refreshEpoch
       ) {
         entry.refreshing = false;
+        this._settleRefreshHealth(entry, 'cancelled');
         entry.managerRefreshError = null;
         this._publishActivity({ type: 'status' });
         this._notifyListeners({
@@ -337,6 +383,7 @@ export class LayerLifecycle {
     }
 
     entry.refreshing = false;
+    this._settleRefreshHealth(entry, failure ? 'failed' : 'completed');
     entry.managerRefreshError = failure
       ? String(failure.message || failure)
       : null;
@@ -871,6 +918,8 @@ export class LayerLifecycle {
         }
       };
       const finishCancelledEnable = async (phase, resourceAbort = false) => {
+        if (entry.refreshHealth.outcome === 'pending')
+          this._settleRefreshHealth(entry, 'cancelled');
         // A resource-local AbortError settles this transaction without
         // aborting the caller's signal. Release that signal's listener now so
         // a later abort cannot revoke a successful retry.
@@ -917,6 +966,8 @@ export class LayerLifecycle {
         return false;
       };
       const finishFailedEnable = async (phase, error) => {
+        if (entry.refreshHealth.outcome === 'pending')
+          this._settleRefreshHealth(entry, 'failed');
         if (entry.intervalId) {
           clearInterval(entry.intervalId);
           entry.intervalId = null;
@@ -1005,6 +1056,7 @@ export class LayerLifecycle {
 
       // First update immediately
       this._setVisibilityIntentPhase(entry, intentEpoch, 'update');
+      this._beginRefreshHealth(entry);
       try {
         const updated = await entry.module.update(this.viewer, { signal });
         if (updated === false) throw lifecycleRejectedError(layerId, 'update');
@@ -1018,6 +1070,15 @@ export class LayerLifecycle {
         return finishFailedEnable('update', e);
       }
       if (signal?.aborted) return finishCancelledEnable('update');
+      this._settleRefreshHealth(
+        entry,
+        refreshFailureFromStats(
+          this._moduleStats(entry),
+          entry.module.name || layerId,
+        )
+          ? 'failed'
+          : 'completed',
+      );
       entry.managerRefreshError = null;
 
       entry.enabled = true;

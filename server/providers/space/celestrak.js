@@ -21,9 +21,14 @@ import { readResponseTextCapped } from '../common/http.js';
  * beats an empty satellites layer). Pattern mirrors openSkyProxy's
  * cache+serve-stale. Adapted from skylight's TleStore (MIT).
  */
-export function celestrakProxy() {
+export function celestrakProxy(options = {}) {
+  const {
+    fetchImpl = (...args) => fetch(...args),
+    now = () => Date.now(),
+    cacheDir = path.join(process.cwd(), '.gev-cache'),
+  } = options;
   const TLE_TTL_MS = 6 * 3600_000;
-  const CACHE_DIR = path.join(process.cwd(), '.gev-cache');
+  const CACHE_DIR = cacheDir;
   const mem = new Map(); // group -> { at: epochMs, body: string }
   const inflight = new Map(); // group -> Promise<{at, body}|null>
 
@@ -55,7 +60,7 @@ export function celestrakProxy() {
   async function fetchUpstream(group) {
     const url = celestrakTleUrl(group);
     const signal = AbortSignal.timeout(20000);
-    const res = await fetch(url.toString(), {
+    const res = await fetchImpl(url.toString(), {
       signal,
       // CelesTrak 403s bulk groups (e.g. `active`) unless the request carries a
       // descriptive User-Agent with a contact point.
@@ -72,7 +77,7 @@ export function celestrakProxy() {
     );
     // An upstream error page parses to zero TLEs — treat as failure, keep cache.
     if (!/^1 /m.test(body)) throw new Error('no TLE lines in response');
-    return { at: Date.now(), body };
+    return { at: now(), body };
   }
 
   const installMiddleware = (server) => {
@@ -85,7 +90,7 @@ export function celestrakProxy() {
         res.end('invalid group');
         return;
       }
-      const send = (status, body, cacheStatus) => {
+      const send = (status, body, cacheStatus, fetchedAt = null) => {
         // Guard against a double-send (e.g. a throw AFTER a response already
         // went out routing into the catch's send): writeHead after headersSent
         // throws "Cannot set headers after they are sent".
@@ -93,18 +98,21 @@ export function celestrakProxy() {
         res.writeHead(status, {
           'Content-Type': 'text/plain',
           'x-tle-cache': cacheStatus,
+          ...(Number.isFinite(fetchedAt)
+            ? { 'x-tle-fetched-at': String(fetchedAt) }
+            : {}),
         });
         res.end(body);
       };
       try {
-        const now = Date.now();
+        const requestedAt = now();
         let entry = mem.get(group);
         if (!entry) {
           entry = await readDisk(group);
           if (entry) mem.set(group, entry);
         }
-        if (entry && now - entry.at < TLE_TTL_MS) {
-          send(200, entry.body, 'HIT');
+        if (entry && requestedAt - entry.at < TLE_TTL_MS) {
+          send(200, entry.body, 'HIT', entry.at);
           return;
         }
         // Stale or missing → refresh, single-flight per group.
@@ -128,9 +136,9 @@ export function celestrakProxy() {
         }
         const fresh = await inflight.get(group);
         if (fresh) {
-          send(200, fresh.body, 'MISS');
+          send(200, fresh.body, 'MISS', fresh.at);
         } else if (entry) {
-          send(200, entry.body, 'STALE-ERROR'); // upstream down — stale beats empty
+          send(200, entry.body, 'STALE-ERROR', entry.at); // upstream down — stale beats empty
         } else {
           send(502, 'celestrak fetch failed and no cache available', 'NONE');
         }

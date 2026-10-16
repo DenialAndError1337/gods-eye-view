@@ -22,6 +22,7 @@ export function createApplicationRequestServices({
     boundaries: '/api/overpass',
     terrain: '/api/terrain/heights',
     regional: '/api/regional-brief',
+    monitoringNews: '/api/monitoring-news',
     weather: '/api/weather-effects',
     summary: '/api/openai/hud-summary',
     ...endpoints,
@@ -63,7 +64,13 @@ export function createApplicationRequestServices({
   }
   function requireOk(response, label) {
     if (!response.ok)
-      throw new Error(`${label} unavailable (${response.status})`);
+      throw Object.assign(
+        new Error(`${label} unavailable (${response.status})`),
+        {
+          status: response.status,
+          retryAfterMs: retryAfterMs(response.headers?.get?.('retry-after')),
+        },
+      );
     return response.data;
   }
   // Remember valid capability decisions for the page, so an
@@ -159,6 +166,15 @@ export function createApplicationRequestServices({
       },
     },
     regional: {
+      async searchNews(query, options) {
+        return requireOk(
+          await request(
+            `${urls.monitoringNews}?${new URLSearchParams(query)}`,
+            options,
+          ),
+          'Monitoring news',
+        );
+      },
       async getBrief(latitude, longitude, options) {
         return requireOk(
           await request(pointUrl(urls.regional, latitude, longitude), options),

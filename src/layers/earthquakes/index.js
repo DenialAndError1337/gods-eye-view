@@ -23,6 +23,49 @@ export function createEarthquakesLayer({ source, overlayHost } = {}) {
   let _lastUpdate = null;
   let _lastError = null;
   let _enabled = false;
+  let _records = [];
+  let _overlayEntries = [];
+  let _monitoringFilter = null;
+  let _monitoringSelectedId = null;
+
+  function paintSelection(id, selected) {
+    if (id == null || !_dataSource) return;
+    const row = _records.find((record) => record.stableId === id);
+    const entity = _dataSource.entities.getById(`earthquake:${id}`);
+    if (!row || !entity) return;
+    const color = depthColor(row.depthKm || 0);
+    entity.ellipse.outlineColor = selected
+      ? Cesium.Color.WHITE
+      : color.withAlpha(row.mag >= 5 ? 1 : 0.8);
+    entity.ellipse.material = new Cesium.ColorMaterialProperty(
+      color.withAlpha(selected ? 0.7 : row.mag >= 5 ? 0.4 : 0.3),
+    );
+  }
+
+  function applyMonitoringFilter() {
+    if (!_dataSource) return;
+    const visible = new Set(
+      _records
+        .filter((row) => !_monitoringFilter || _monitoringFilter(row))
+        .map((row) => String(row.stableId)),
+    );
+    for (const entity of _dataSource.entities.values) {
+      entity.show = visible.has(String(entity.id).slice('earthquake:'.length));
+    }
+    if (_enabled)
+      overlayHost.setEntries(
+        EARTHQUAKE_OVERLAY_SOURCE_ID,
+        selectEarthquakeOverlayCohort(
+          _overlayEntries.filter((entry) => visible.has(entry.id)),
+        ),
+        {
+          cohortLimit: EARTHQUAKE_OVERLAY_COHORT_LIMIT,
+          collisionCapacity: EARTHQUAKE_OVERLAY_COLLISION_CAPACITY,
+          moving: false,
+        },
+      );
+    _viewer?.scene?.requestRender?.();
+  }
 
   const layer = {
     id: 'earthquakes',
@@ -131,19 +174,19 @@ export function createEarthquakesLayer({ source, overlayHost } = {}) {
           );
         }
 
+        const selectedId = _viewer?.selectedEntity?.id;
         _dataSource.entities.removeAll();
         for (const entity of nextEntities) _dataSource.entities.add(entity);
-        if (_enabled) {
-          overlayHost.setEntries(
-            EARTHQUAKE_OVERLAY_SOURCE_ID,
-            selectEarthquakeOverlayCohort(overlayEntries),
-            {
-              cohortLimit: EARTHQUAKE_OVERLAY_COHORT_LIMIT,
-              collisionCapacity: EARTHQUAKE_OVERLAY_COLLISION_CAPACITY,
-              moving: false,
-            },
-          );
+        if (
+          typeof selectedId === 'string' &&
+          selectedId.startsWith('earthquake:')
+        ) {
+          _viewer.selectedEntity = _dataSource.entities.getById(selectedId);
         }
+        _records = rows.map((row) => ({ ...row }));
+        _overlayEntries = overlayEntries;
+        applyMonitoringFilter();
+        paintSelection(_monitoringSelectedId, true);
 
         _count = count;
         _lastUpdate = Date.now();
@@ -175,6 +218,32 @@ export function createEarthquakesLayer({ source, overlayHost } = {}) {
       _count = 0;
       _lastUpdate = null;
       _lastError = null;
+      _records = [];
+      _overlayEntries = [];
+      _monitoringFilter = null;
+      _monitoringSelectedId = null;
+    },
+
+    /** Monitoring reads the same accepted snapshot; it never starts acquisition. */
+    getMonitoringRecords() {
+      return _enabled ? _records.map((row) => ({ ...row })) : [];
+    },
+    getMonitoringEntity(stableId) {
+      return _enabled
+        ? _dataSource?.entities.getById(`earthquake:${stableId}`)
+        : null;
+    },
+    setMonitoringFilter(predicate = null) {
+      _monitoringFilter = predicate;
+      if (!predicate) layer.setMonitoringSelection(null);
+      applyMonitoringFilter();
+    },
+    setMonitoringSelection(stableId = null) {
+      if (_monitoringSelectedId === stableId) return;
+      paintSelection(_monitoringSelectedId, false);
+      _monitoringSelectedId = stableId;
+      paintSelection(_monitoringSelectedId, true);
+      _viewer?.scene?.requestRender?.();
     },
 
     /**

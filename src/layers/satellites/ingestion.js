@@ -1,3 +1,4 @@
+import { catalogHealth } from './health.js';
 import { twoline2satrec } from 'satellite.js';
 import * as Cesium from 'cesium';
 import { CATALOG_GROUPS, ISS_NORAD, POINT_STYLES } from './policy.js';
@@ -10,6 +11,7 @@ export function createIngestion({
 }) {
   const methods = {
     async update(viewer, { signal = null } = {}) {
+      layerState._lastAttempt = Date.now();
       const trackingRefreshEpoch = ++layerState._trackingRefreshEpoch;
       layerState._lastTrackingRefreshOutcome = {
         epoch: trackingRefreshEpoch,
@@ -34,7 +36,13 @@ export function createIngestion({
               if (!res.ok) return { ...groupDef, entries: [], ok: false };
               const entries = parts.orbits.parseTLE(res.text);
               updateSignal.throwIfAborted();
-              return { ...groupDef, entries, ok: entries.length > 0 };
+              return {
+                ...groupDef,
+                entries,
+                ok: entries.length > 0,
+                stale: res.stale,
+                fetchedAt: res.fetchedAt,
+              };
             } catch (error) {
               if (updateSignal.aborted || error?.name === 'AbortError')
                 throw error;
@@ -60,6 +68,10 @@ export function createIngestion({
         // screen and surface the outage instead — do NOT stamp _lastUpdate.
         if (results.every((r) => !r.ok)) {
           layerState._lastError = 'CelesTrak unreachable';
+          layerState._coreHealth = {
+            ...layerState._coreHealth,
+            failedGroups: failed,
+          };
           console.warn(
             '[Data:Satellites] All CelesTrak groups failed — keeping existing catalog, surfacing outage',
           );
@@ -86,6 +98,7 @@ export function createIngestion({
         // group shifts which one wins dedupe), so the cache must go with the
         // catalog or those labels stay stale for the life of the session.
         layerState._detectionObjects.clear();
+        layerState._denseHealth = null;
         layerState._denseIds = [];
         layerState._denseCursor = 0;
         layerState._denseLoadController?.abort();
@@ -155,7 +168,8 @@ export function createIngestion({
 
         layerState._count = layerState._points.size;
         layerState._catalogRevision++;
-        layerState._lastUpdate = Date.now();
+        layerState._coreHealth = catalogHealth(results);
+        layerState._lastUpdate = layerState._coreHealth.fetchedAt;
         layerState._lastPropagation = Date.now();
         layerState._lastTrackingRefreshOutcome = {
           epoch: trackingRefreshEpoch,

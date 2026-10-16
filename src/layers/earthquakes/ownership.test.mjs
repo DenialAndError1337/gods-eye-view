@@ -88,3 +88,60 @@ test('USGS body completion honors cancellation even with an uncooperative transp
     name: 'AbortError',
   });
 });
+
+test('monitoring filters the accepted snapshot and overlay without acquisition; filter and selected identity survive refresh', async () => {
+  let calls = 0;
+  const h = harness({
+    getSnapshot: async () => {
+      calls++;
+      return [row, { ...row, stableId: 'other', usgsId: 'other', lon: -30 }];
+    },
+  });
+  await h.layer.update(h.viewer);
+  h.viewer.selectedEntity = h.layer.getMonitoringEntity('event-a');
+  const previous = h.viewer.selectedEntity;
+  h.layer.setMonitoringFilter((record) => record.lon > 0);
+  assert.equal(h.layer.getMonitoringEntity('other').show, false);
+  assert.equal(h.layer.getMonitoringEntity('event-a').show, true);
+  assert.deepEqual(
+    h.events.at(-1)[1].map((e) => e.id),
+    ['event-a'],
+  );
+  assert.equal(h.layer.getMonitoringRecords().length, 2);
+  assert.equal(calls, 1);
+  await h.layer.update(h.viewer);
+  assert.notEqual(h.viewer.selectedEntity, previous);
+  assert.equal(h.viewer.selectedEntity.id, 'earthquake:event-a');
+  assert.equal(h.layer.getMonitoringEntity('other').show, false);
+  h.layer.setMonitoringFilter(null);
+  assert.equal(h.layer.getMonitoringEntity('other').show, true);
+  assert.equal(calls, 2);
+  h.layer.disable(h.viewer);
+  assert.deepEqual(h.layer.getMonitoringRecords(), []);
+  h.layer.destroy();
+});
+
+test('monitoring selection visibly distinguishes a contact, survives refresh, and releases the emphasis on close', async () => {
+  const h = harness({ getSnapshot: async () => [row] });
+  await h.layer.update(h.viewer);
+  const baseAlpha = h.layer
+    .getMonitoringEntity('event-a')
+    .ellipse.material.color.getValue().alpha;
+  h.layer.setMonitoringSelection('event-a');
+  assert.ok(
+    h.layer.getMonitoringEntity('event-a').ellipse.material.color.getValue()
+      .alpha > baseAlpha,
+  );
+  await h.layer.update(h.viewer);
+  assert.ok(
+    h.layer.getMonitoringEntity('event-a').ellipse.material.color.getValue()
+      .alpha > baseAlpha,
+  );
+  h.layer.setMonitoringFilter(null);
+  assert.equal(
+    h.layer.getMonitoringEntity('event-a').ellipse.material.color.getValue()
+      .alpha,
+    baseAlpha,
+  );
+  h.layer.destroy();
+});

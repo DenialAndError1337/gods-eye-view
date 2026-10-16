@@ -16,6 +16,7 @@ export const LAYER_FEED_STATES = Object.freeze([
   'nominal',
   'loading',
   'degraded',
+  'partial',
   'stale',
   'fallback',
   'unavailable',
@@ -26,6 +27,7 @@ export const LAYER_FEED_STATE_LABELS = Object.freeze({
   nominal: 'ON',
   loading: 'LOADING',
   degraded: 'DEGRADED',
+  partial: 'PARTIAL',
   stale: 'STALE',
   fallback: 'FALLBACK',
   unavailable: 'UNAVAILABLE',
@@ -46,6 +48,7 @@ export const FEED_STATE_SEVERITY = Object.freeze({
   unavailable: 0,
   loading: 1,
   degraded: 2,
+  partial: 2.5,
   stale: 3,
   fallback: 4,
   nominal: 5,
@@ -150,6 +153,15 @@ export function layerSnapshot(layer = {}, { now = Date.now() } = {}) {
     ageSec: snapshotAgeSec(lastUpdate, now),
     ageLabel: snapshotAgeLabel(lastUpdate, now),
     error: snapshotError(stats),
+    ...(Number.isFinite(stats.retryAt) && stats.retryAt > 0
+      ? { retryAt: stats.retryAt }
+      : {}),
+    ...(Number.isFinite(stats.retryInSec) && stats.retryInSec >= 0
+      ? { retryInSec: stats.retryInSec }
+      : {}),
+    ...(stats.refreshHealth
+      ? { refreshHealth: { ...stats.refreshHealth } }
+      : {}),
   };
 }
 

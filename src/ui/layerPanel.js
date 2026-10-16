@@ -290,6 +290,7 @@ export class LayerPanel {
       const bottomRow = document.createElement('div');
       bottomRow.className = 'data-toggle-meta';
       bottomRow.textContent = this._buildMetaText(layer);
+      bottomRow.title = this._buildHealthTitle(layer);
 
       row.appendChild(topRow);
       row.appendChild(bottomRow);
@@ -522,6 +523,7 @@ export class LayerPanel {
       const meta = row.querySelector('.data-toggle-meta');
       if (meta) {
         meta.textContent = this._buildMetaText(layer);
+        meta.title = this._buildHealthTitle(layer);
       }
 
       this._syncRowControls(
@@ -531,6 +533,21 @@ export class LayerPanel {
       );
     }
     this._refreshWeatherPanel();
+  }
+
+  _buildHealthTitle(layer) {
+    const stats = layer.stats || {};
+    const health = stats.refreshHealth;
+    if (!health) return '';
+    const retry =
+      Number.isFinite(stats.retryAt) && stats.retryAt > 0
+        ? new Date(stats.retryAt).toISOString()
+        : Number.isFinite(stats.retryInSec) && stats.retryInSec >= 0
+          ? `${stats.retryInSec}s remaining`
+          : 'unknown';
+    const stamp = (at) =>
+      Number.isFinite(at) && at > 0 ? new Date(at).toISOString() : 'unknown';
+    return `Manager update: ${health.outcome}; last attempt ${stamp(health.lastAttempt)}; last completion ${stamp(health.lastCompletion)}; last successful completion ${stamp(health.lastSuccess)}. Completion does not establish upstream freshness. Source data timestamp: ${stamp(stats.lastUpdate)}. Source retry: ${retry}.`;
   }
 
   _buildMetaText(layer) {
