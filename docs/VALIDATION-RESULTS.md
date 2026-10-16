@@ -15,6 +15,16 @@ Keep a dated copy/section for each tested commit so later fixes do not erase his
 - Configured providers (labels only, no secrets):
 - Tester:
 
+## Automated report
+
+- Runner mode (focused / full):
+- Local report folder:
+- Automated verdict / failed or blocked checks:
+
+A focused-mode success leaves full-suite/allocation acceptance untested. The
+runner deliberately leaves manual and browser acceptance NOT RUN. Use its logs
+as evidence and fill in the observed outcomes below.
+
 ## Outcomes
 
 Allowed statuses: PASS, FAIL, BLOCKED, NOT RUN. Add evidence/details when changing a status.

@@ -1054,5 +1054,7 @@
   "src/tooling/webAppIcons.test.mjs",
   "src/ui/flyToDataSource.js",
   "src/ui/flyToDataSource.test.mjs",
-  "src/data/gbfsProxyRateLimit.test.mjs"
+  "src/data/gbfsProxyRateLimit.test.mjs",
+  "scripts/validate-monitoring.mjs",
+  "src/tooling/monitoringValidation.test.mjs"
 ]

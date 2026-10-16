@@ -125,7 +125,41 @@ Do not claim it passed manually if that condition did not occur.
 ## 6. Automated checks on your machine
 
 Stop the dev server if you need resources; these commands do not commit or push.
-Run each command separately and record its exit status and final summary.
+For the routine automated pass, run:
+
+```sh
+npm run validate:monitoring
+```
+
+This runs focused regressions, the production build, formatting, architecture,
+layer-token and whitespace checks. It prints the path to a new
+`validation-output/run-.../report.md`; the same folder contains report.json and
+per-check logs. Each run gets a new folder, so earlier evidence is preserved.
+The default folder is ignored by Git. Review/redact diagnostics before sharing;
+reports stay local and are not uploaded automatically.
+
+For the complete ordinary suite and both serialized allocation probes, use
+Node 24 and run:
+
+```sh
+npm run validate:monitoring -- --full
+```
+
+The full runner uses the repository's discovery/partition logic, ordinary
+concurrency 8 and unchanged allocation invocations/budgets. It continues through
+independent gates after a failure and exits nonzero if a requested check fails
+or is blocked. On another supported Node version the allocation checks are
+BLOCKED, rather than counted as passing. Default focused mode leaves the full
+suite NOT RUN. Browser/manual checks remain NOT RUN in both modes; complete
+the separate steps above and below. A passing automated verdict is not overall
+acceptance.
+
+`npm run validate:monitoring -- --out /path/to/results` chooses a different parent
+folder; a new run folder is still created. `--help` prints usage. The command does
+not install dependencies, commit, push or acquire live feed data. Interrupting the runner leaves its last saved report INCOMPLETE.
+
+The individual commands remain useful for reproducing a failure. Run each
+separately and record its exit status and final summary.
 
 Focused regressions for the custom workflow:
 
@@ -151,9 +185,10 @@ A failing assertion on your machine needs investigation; do not assume every
 failure shares that host limitation. Build warnings about existing large chunks
 were present before this checkpoint; record new warnings/errors separately.
 
-The latest development-host ordinary run reported 7,133 passes and one skip;
+The latest development-host ordinary run reported 7,139 passes and one skip;
 that excluded the two allocation probes and is not a claim that full npm test
-passed. Documentation-only changes in this checkpoint did not rerun that suite.
+passed. The development-host evidence for the runner increment is recorded in DONE.md;
+manual results on your machine remain separate.
 
 Optional browser fixture gate, with the dev server running:
 

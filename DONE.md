@@ -19,6 +19,7 @@ wording. Its “next” sections are historical; current work is in [TODO.md](TO
 | GEV_CONFIGURED_RSS_UPDATE               | Operator-configured HTTPS feed sources                                   | Apply after news provenance                                                                               |
 | GEV_ATOM_FEEDS_UPDATE                   | Strict Atom/RSS XML parsing, timestamp provenance, custom source filters | Apply after configured RSS; run npm ci because a dependency was added                                     |
 | GEV_VALIDATION_CHECKPOINT               | TODO/DONE split, preserved history and validation runbook/results        | Documentation increment after Atom; no application code or dependencies changed                           |
+| GEV_VALIDATION_RUNNER_UPDATE            | Automated checks with local per-gate logs and reports                    | Apply after the validation checkpoint; no new dependencies                                                |
 
 Pinned upstream: `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
 The user reported committing the reconciled customization as `d068dcbd` and
@@ -150,6 +151,35 @@ and added an ordered runbook and results template. This increment changes
 only documentation. Verified formatting, referenced local paths, patch
 application against the Atom delivery tree and resulting tree identity.
 No application runtime checks or manual acceptance are newly claimed here.
+
+## 10. Automated validation reports — 2026-10-16
+
+Added `npm run validate:monitoring` to run focused monitoring regressions,
+production build, formatting, import/package boundaries, layer-token
+compatibility and whitespace checks. `-- --full` uses the existing unit-test
+discovery/partition, bounded ordinary concurrency and isolated allocation
+probes without changing their thresholds. Allocation checks require calibrated
+Node 24 and are BLOCKED on other runtimes.
+
+Each run creates a fresh local report directory with Markdown/JSON summaries
+and separate logs. Results are saved after each gate; independent gates continue
+after failures, with nonzero final exit for failed/blocked requested checks.
+Tests require both exit zero and a nonempty completed TAP summary. Browser,
+manual, live-source and long-session acceptance stay explicitly NOT RUN.
+No dependencies, live feed requests, source configuration or Git mutations are
+introduced by the command.
+Reports are ignored by Git and not automatically shared. Diagnostics should be
+reviewed before sharing.
+
+Verification: all six new runner tests passed; the real default command passed
+198 focused tests and all build/quality gates. Production build: 849 modules,
+10.24 seconds, with existing large-chunk warnings. A separate full ordinary run
+reported 7,140 tests: 7,139 passed, one skipped, zero failed, 53.05 seconds.
+Allocation probes were excluded by the existing partition; the previously
+recorded host memory-measurement limitation is unchanged. Browser/GPU/live-feed
+and user acceptance remain pending. Help/syntax, ignored default report output,
+documentation formatting/links and incremental patch/result-tree checks passed.
+The delivery is an incremental patch after GEV_VALIDATION_CHECKPOINT.
 
 ## Failed approaches and conditions for retry
 

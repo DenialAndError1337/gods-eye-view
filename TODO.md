@@ -6,6 +6,11 @@ Implemented does not mean accepted on the user's laptop.
 
 ## Next milestone: validate the accumulated changes
 
+- [x] Add a single-command automated validation runner with per-check logs and
+      Markdown/JSON reports. `npm run validate:monitoring` runs focused tests,
+      build and quality checks; `-- --full` adds the full ordinary suite and
+      serialized allocation probes. This does not complete user acceptance.
+
 - [ ] Establish the installed baseline and dependency state using the
       [validation runbook](docs/VALIDATION-RUNBOOK.md).
 - [ ] Run the short browser smoke checks, then news/provenance, source-health,
@@ -19,7 +24,7 @@ Implemented does not mean accepted on the user's laptop.
 - [ ] Fix and retest reported regressions before advancing feature scope.
 
 No user acceptance results have been supplied for the accumulated increments.
-The latest development-host ordinary suite passed 7,133 tests with one skip;
+The latest development-host ordinary suite passed 7,139 tests with one skip;
 allocation probes, browser/GPU acceptance and current live-source availability
 remain separate checks.
 
