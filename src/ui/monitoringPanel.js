@@ -8,7 +8,7 @@ import {
 } from '../monitoring/events.js';
 import { createMonitoringStore, eventMatches } from '../monitoring/store.js';
 import { createMonitoringNews } from '../monitoring/news.js';
-import { NEWS_TOPICS } from '../monitoring/newsQuery.js';
+import { NEWS_TOPICS, isNewsProvider } from '../monitoring/newsQuery.js';
 
 /** Opt-in monitoring surface; all globe access and acquisition are injected. */
 export function createMonitoringPanel({
@@ -32,6 +32,10 @@ export function createMonitoringPanel({
   let syncingMap = false;
   let limit = 100;
   let timer;
+  let inventoryRequest = null;
+  let inventoryLoaded = false;
+  let rememberedProvider = null;
+  let providerChanged = false;
   let quakeState = { rows: [], feedState: 'off', count: 0 };
   let newsState = {
     status: 'disabled',
@@ -110,8 +114,9 @@ export function createMonitoringPanel({
   const preferenceKey = 'gev.monitoring.news-provider.v1';
   try {
     const saved = providerStorage?.getItem(preferenceKey);
-    if (['auto', 'google', 'gdelt'].includes(saved)) {
-      queryProvider.value = saved;
+    if (isNewsProvider(saved)) {
+      rememberedProvider = saved;
+      if (!saved.startsWith('rss:')) queryProvider.value = saved;
       rememberProvider.checked = true;
     }
   } catch {
@@ -128,7 +133,7 @@ export function createMonitoringPanel({
   const saveProvider = () => {
     try {
       if (rememberProvider.checked) {
-        if (!['auto', 'google', 'gdelt'].includes(queryProvider.value)) return;
+        if (!isNewsProvider(queryProvider.value)) return;
         providerStorage?.setItem(preferenceKey, queryProvider.value);
       } else providerStorage?.removeItem(preferenceKey);
       preferenceStatus.textContent = '';
@@ -140,8 +145,68 @@ export function createMonitoringPanel({
   };
   lifetime.listen(rememberProvider, 'change', saveProvider);
   lifetime.listen(queryProvider, 'change', () => {
+    providerChanged = true;
     if (rememberProvider.checked) saveProvider();
   });
+  const inventoryStatus = make('p', queryForm, '', 'monitoring-help');
+  inventoryStatus.setAttribute('role', 'status');
+  async function loadInventory() {
+    if (
+      inventoryLoaded ||
+      inventoryRequest ||
+      typeof newsService.getNewsSources !== 'function'
+    )
+      return;
+    const request = new AbortController();
+    inventoryRequest = request;
+    inventoryStatus.textContent = 'Loading configured feed inventory…';
+    try {
+      const payload = await newsService.getNewsSources({
+        signal: request.signal,
+      });
+      if (destroyed || request.signal.aborted || inventoryRequest !== request)
+        return;
+      if (!Array.isArray(payload?.feeds) || payload.feeds.length > 8)
+        throw new Error('Invalid inventory');
+      const ids = new Set();
+      const feeds = payload.feeds.map((feed) => {
+        if (
+          !isNewsProvider(`rss:${feed.id}`) ||
+          ids.has(feed.id) ||
+          typeof feed.label !== 'string' ||
+          !feed.label ||
+          feed.label.length > 80
+        )
+          throw new Error('Invalid inventory');
+        ids.add(feed.id);
+        return feed;
+      });
+      for (const feed of feeds) {
+        const option = make(
+          'option',
+          queryProvider,
+          `${feed.label} (configured RSS)`,
+        );
+        option.value = `rss:${feed.id}`;
+      }
+      if (rememberedProvider?.startsWith('rss:') && !providerChanged) {
+        if (feeds.some((feed) => `rss:${feed.id}` === rememberedProvider))
+          queryProvider.value = rememberedProvider;
+        else rememberProvider.checked = false;
+        rememberedProvider = null;
+      }
+      inventoryLoaded = true;
+      inventoryStatus.textContent = feeds.length
+        ? `${feeds.length} configured RSS feed(s) available. RSS loads recent items; topic is not applied. Phrase/region match headlines only.`
+        : 'No custom RSS feeds configured. Built-in providers remain available.';
+    } catch {
+      if (!destroyed && !request.signal.aborted && inventoryRequest === request)
+        inventoryStatus.textContent =
+          'Configured feeds unavailable. Built-in providers remain available; check server configuration.';
+    } finally {
+      if (inventoryRequest === request) inventoryRequest = null;
+    }
+  }
   const queryHours = querySelect('Search window', 'hours', [
     ['24', '24 hours'],
     ['48', '48 hours'],
@@ -361,7 +426,8 @@ export function createMonitoringPanel({
     const { rows, selected, filters: f } = view;
     const newsAge = Date.now() - Date.parse(newsState.lastSuccess);
     const newsStatus =
-      ['nominal', 'empty'].includes(newsState.status) && newsAge > 300000
+      ['nominal', 'empty'].includes(newsState.status) &&
+      newsAge > (newsState.freshnessMs || 300000)
         ? 'stale'
         : newsState.status;
     category.value = f.category;
@@ -555,9 +621,12 @@ export function createMonitoringPanel({
     panel.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
     if (open) {
+      void loadInventory();
       tick();
       close.focus();
     } else {
+      inventoryRequest?.abort();
+      inventoryRequest = null;
       lifetime.cancelTimeout(timer);
       news.cancel();
       applyMapFilter(null);
@@ -567,6 +636,7 @@ export function createMonitoringPanel({
   return {
     destroy() {
       destroyed = true;
+      inventoryRequest?.abort();
       news.destroy();
       lifetime.destroy();
       unsubscribe();

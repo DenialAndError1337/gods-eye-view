@@ -1,6 +1,6 @@
 # Monitoring milestones
 
-Latest work: see **News provenance and related reporting** below.
+Latest work: see **Configured RSS source inventory** below.
 
 ## Milestone 1 — implementation and verification snapshot
 
@@ -256,9 +256,40 @@ the existing dashboard branch, not another upstream replacement.
 
 1. Evidence-backed canonical publisher URLs. Provider-reported links and opaque
    Google RSS links are labelled; canonical resolution is not implemented.
-2. Configurable source inventory/RSS feeds. This increment only remembers the
-   existing provider selector when the user opts in.
+2. Local configured RSS inventory is implemented in the following increment.
+   Atom support and browser inventory editing remain follow-up work.
 3. Broader syndication analysis. Current exact URL/headline groups are heuristics,
    preserve all rows and cannot establish independent corroboration.
 4. Browser/pointer/narrow-layout/GPU/long-session acceptance and performance gates
    on a compatible host. Independent-source telemetry remains partial as before.
+
+## Configured RSS source inventory (2026-10-16)
+
+Increment based on the previous news-provenance tree
+`bddba421034d1258b000c48ca0903012ae570f87`. Apply after the news-provenance update
+on the existing `gev/osint-dashboard` branch. Upstream remains pinned at
+`537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
+
+Implemented a bounded local RSS inventory and explicit feed loading in the
+existing monitoring/news path. No custom feed is enabled by default. The browser
+submits configured IDs; destinations come only from validated operator config.
+Source refresh spacing/cache is shared across query variants; fallback retains
+original acquisition time. RSS topic/search limitations remain visible.
+
+| Work                                              | Status                        | Evidence                                                                                                                                                                         |
+| ------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local inventory and isolated configuration errors | Pass                          | Schema/size/URL/refresh validation; generic errors do not break built-ins or expose full URLs                                                                                    |
+| Bounded HTTPS transport                           | Pass                          | Pinned public lookup, private/mixed DNS and IP refusal, redirects/body cap/deadline tests                                                                                        |
+| Source cache, cooldown and provenance             | Pass                          | Coalescing, shared raw cache, failure spacing, stale expiry, publication time and bounded freshness                                                                              |
+| Inventory/selection ownership                     | Pass (controller)             | Metadata-only load, validated preference, close cancellation, late results and user selection race                                                                               |
+| Focused tests                                     | Pass                          | 43 tests pass, zero failures                                                                                                                                                     |
+| Full ordinary suite and gates                     | Pass                          | 7,124 tests: 7,123 passed, 1 skipped, zero failures; 56.47 seconds. Build: 849 modules, 12.66 seconds; format: 1,408 files; boundaries; 31 published/zero new tokens; diff check |
+| Local inventory HTTP smoke                        | Pass                          | Same-session Vite request returned HTTP 200, one configured ID and refresh interval; full feed URL/token absent; no feed acquisition requested                                   |
+| Live custom feeds, browser and GPU                | Needs follow-up               | No configured feed selected for live verification; existing browser/GPU host limitation remains                                                                                  |
+| Allocation measurements                           | Needs follow-up (environment) | Prior host memory-measurement limitation unchanged; no allocation thresholds modified                                                                                            |
+
+Setup: `docs/CONFIGURED-RSS.md` and the commented `.env.example` template. No
+credentials, new dependencies, registrations, scheduled polling or public
+deployment were added. Canonical publisher verification, Atom/browser source
+editing, broader syndication analysis and independent-source telemetry remain
+follow-up work. No unmerged upstream PR is treated as an implemented feature.

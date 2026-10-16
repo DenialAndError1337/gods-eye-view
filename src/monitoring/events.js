@@ -60,7 +60,10 @@ export function newsEvents(payload) {
         linkKind: aggregator ? 'aggregator' : 'provider-reported',
         linkHost,
         timeMs: eventTime(article.publishedAt),
-        timeMeaning: google ? 'Publication (RSS)' : 'Indexed (GDELT)',
+        timeMeaning:
+          google || payload.newsTimeMeaning === 'Publication (RSS)'
+            ? 'Publication (RSS)'
+            : 'Indexed (GDELT)',
         coordinates: null,
         locationEvidence:
           'Unlocated report; query context is not incident geography',

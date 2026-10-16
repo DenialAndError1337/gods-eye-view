@@ -1,3 +1,9 @@
+import {
+  configuredNewsFeeds,
+  fetchConfiguredNews,
+  readConfiguredNewsFeed,
+  configuredFeedReader,
+} from './monitoringFeeds.js';
 import { makeRateLimiter, clientKey } from './common/rate-limit.js';
 import { fetchRegionalJson, fetchRegionalText } from './regional/http.js';
 import { normalizeRssArticles } from './regional/news.js';
@@ -84,7 +90,24 @@ export async function fetchMonitoringNews(
 export function monitoringNewsProxy({
   fetchNews = fetchMonitoringNews,
   now = Date.now,
+  feeds: feedInput,
+  readFeed = readConfiguredNewsFeed,
 } = {}) {
+  let feeds = [];
+  let configError = false;
+  const configuredReader = configuredFeedReader({ readFeed, now });
+  const loadFeeds = () => {
+    configError = false;
+    try {
+      feeds = configuredNewsFeeds(
+        feedInput ?? process.env.GEV_NEWS_FEEDS ?? '',
+      );
+    } catch {
+      feeds = [];
+      configError = true;
+      console.warn('[monitoring-news] Invalid configured feed inventory');
+    }
+  };
   const cache = new Map();
   const inflight = new Map();
   const allow = makeRateLimiter({ windowMs: 60000, max: 12, globalMax: 30 });
@@ -97,7 +120,22 @@ export function monitoringNewsProxy({
     });
     res.end(JSON.stringify(payload));
   };
-  const install = (middlewares) =>
+  const install = (middlewares) => {
+    loadFeeds();
+    middlewares.use('/api/monitoring-news-sources', (req, res) => {
+      if (req.method !== 'GET')
+        return send(res, 405, { error: 'Method Not Allowed' });
+      return configError
+        ? send(res, 503, { error: 'Configured feed inventory unavailable' })
+        : send(res, 200, {
+            feeds: feeds.map(({ id, label, host, refreshMinutes }) => ({
+              id,
+              label,
+              host,
+              refreshMinutes,
+            })),
+          });
+    });
     middlewares.use('/api/monitoring-news', async (req, res) => {
       if (req.method !== 'GET')
         return send(res, 405, { error: 'Method Not Allowed' });
@@ -106,6 +144,11 @@ export function monitoringNewsProxy({
       );
       if (!query)
         return send(res, 400, { error: 'Invalid monitoring news query' });
+      if (
+        query.provider.startsWith('rss:') &&
+        !feeds.some((feed) => `rss:${feed.id}` === query.provider)
+      )
+        return send(res, 400, { error: 'Unknown configured feed' });
       if (!allow(clientKey(req)))
         return send(res, 429, { error: 'News request rate limited' }, 60);
       const key = JSON.stringify(query);
@@ -131,7 +174,11 @@ export function monitoringNewsProxy({
         }
         nextFetchAt = now() + 5000;
         pending = Promise.resolve()
-          .then(() => fetchNews(query))
+          .then(() =>
+            query.provider.startsWith('rss:')
+              ? fetchConfiguredNews(query, feeds, configuredReader, now)
+              : fetchNews(query),
+          )
           .then((result) => {
             if (!Array.isArray(result.articles))
               throw new Error('Malformed news response');
@@ -145,11 +192,23 @@ export function monitoringNewsProxy({
               )
               .slice(0, 25);
             const payload = {
-              status: result.partial ? 'partial' : 'ready',
+              status: result.stale
+                ? 'stale'
+                : result.partial
+                  ? 'partial'
+                  : 'ready',
               newsStatus: articles.length ? 'ready' : 'empty',
-              retrievedAt: new Date(now()).toISOString(),
+              retrievedAt: result.retrievedAt || new Date(now()).toISOString(),
               newsSource: result.source,
-              newsQuery: `${NEWS_TOPICS[query.topic].label}${query.keywords ? ` · ${query.keywords}` : ''}${query.region ? ` · region text: ${query.region}` : ' · worldwide query'}`,
+              ...(result.freshForMs
+                ? { newsFreshForMs: result.freshForMs }
+                : {}),
+              ...(result.timeMeaning
+                ? { newsTimeMeaning: result.timeMeaning }
+                : {}),
+              newsQuery:
+                result.queryLabel ||
+                `${NEWS_TOPICS[query.topic].label}${query.keywords ? ` · ${query.keywords}` : ''}${query.region ? ` · region text: ${query.region}` : ' · worldwide query'}`,
               articles,
               query,
               coverage:
@@ -176,6 +235,7 @@ export function monitoringNewsProxy({
           : send(res, 503, { error: 'News providers unavailable' }, 30);
       }
     });
+  };
   return {
     name: 'monitoring-news-proxy',
     configureServer(server) {

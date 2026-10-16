@@ -429,3 +429,48 @@ test('headline groups never span more than 24 hours or merge distinct numbers an
   }));
   assert.equal(groupNewsReports(variants).length, 3);
 });
+
+test('configured RSS keeps publication provenance and never assigns query geography', () => {
+  const payload = {
+    ...report(),
+    newsSource: 'Configured RSS · World feed',
+    newsTimeMeaning: 'Publication (RSS)',
+    newsQuery: 'RSS World feed · topic not applied',
+  };
+  const [event] = newsEvents(payload);
+  assert.equal(event.timeMeaning, 'Publication (RSS)');
+  assert.equal(event.linkKind, 'provider-reported');
+  assert.equal(event.coordinates, null);
+  assert.match(event.kind, /not independently corroborated/);
+});
+
+test('news client bounds configured feed freshness without restamping cached acquisition', async () => {
+  let state;
+  let freshness = 900000;
+  const client = createMonitoringNews({
+    now: () => NOW,
+    publish: (value) => {
+      state = value;
+    },
+    service: {
+      getBrief: async () => ({ ...report(), newsFreshForMs: freshness }),
+    },
+  });
+  await client.load({ lat: 1, lon: 1 });
+  assert.equal(state.freshnessMs, 900000);
+  assert.equal(state.lastSuccess, report().retrievedAt);
+  client.destroy();
+  freshness = Infinity;
+  const invalid = createMonitoringNews({
+    now: () => NOW,
+    publish: (value) => {
+      state = value;
+    },
+    service: {
+      getBrief: async () => ({ ...report(), newsFreshForMs: freshness }),
+    },
+  });
+  await invalid.load({ lat: 1, lon: 1 });
+  assert.equal(state.freshnessMs, 300000);
+  invalid.destroy();
+});

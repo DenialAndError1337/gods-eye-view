@@ -193,3 +193,19 @@ test('monitoring topic search encodes user text as query data and preserves canc
   controller.abort();
   assert.equal(received.init.signal.aborted, true);
 });
+
+test('configured news inventory service uses its own endpoint and cancellation without a feed URL', async () => {
+  let received;
+  const services = createApplicationRequestServices({
+    endpoints: { monitoringNewsSources: '/fixture/news-sources' },
+    fetchImpl: async (url, init) => {
+      received = { url, init };
+      return Response.json({ feeds: [] });
+    },
+  });
+  const controller = new AbortController();
+  await services.regional.getNewsSources({ signal: controller.signal });
+  assert.equal(received.url, '/fixture/news-sources');
+  controller.abort();
+  assert.equal(received.init.signal.aborted, true);
+});

@@ -23,6 +23,7 @@ export function createApplicationRequestServices({
     terrain: '/api/terrain/heights',
     regional: '/api/regional-brief',
     monitoringNews: '/api/monitoring-news',
+    monitoringNewsSources: '/api/monitoring-news-sources',
     weather: '/api/weather-effects',
     summary: '/api/openai/hud-summary',
     ...endpoints,
@@ -166,6 +167,12 @@ export function createApplicationRequestServices({
       },
     },
     regional: {
+      async getNewsSources(options) {
+        return requireOk(
+          await request(urls.monitoringNewsSources, options),
+          'Monitoring news sources',
+        );
+      },
       async searchNews(query, options) {
         return requireOk(
           await request(

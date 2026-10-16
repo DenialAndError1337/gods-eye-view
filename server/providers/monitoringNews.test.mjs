@@ -23,8 +23,7 @@ function harness(options) {
   plugin.configureServer({
     middlewares: {
       use(path, callback) {
-        assert.equal(path, '/api/monitoring-news');
-        handler = callback;
+        if (path === '/api/monitoring-news') handler = callback;
       },
     },
   });

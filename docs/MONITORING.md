@@ -112,3 +112,13 @@ incidents or independent corroboration. See `NEWS-SOURCES.md` for exact limits.
 Use **Remember provider on this device** to opt into remembering only the existing
 provider selector. It does not persist search phrases, regions or result data, and
 it never triggers acquisition automatically. Uncheck it to remove the preference.
+
+## Configured RSS providers
+
+The Provider dropdown also lists operator-configured RSS feeds after MONITOR is
+opened. The inventory request itself does not acquire feed content. Choose one
+and press **Search news**. RSS loads recent feed items: Topic is not applied;
+phrase/region text matches headlines. Publication time and cache freshness stay
+explicit. The opt-in provider preference can remember a configured feed ID only
+after that ID is validated against the current inventory. See
+[CONFIGURED-RSS.md](CONFIGURED-RSS.md) for setup and limits.

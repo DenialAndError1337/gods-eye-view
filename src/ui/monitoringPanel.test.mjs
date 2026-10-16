@@ -4,7 +4,11 @@ import { railFixture } from './railTestFixture.mjs';
 import { createMonitoringPanel } from './monitoringPanel.js';
 
 /** Extend the existing instrumented rail DOM only with the data selectors used here. */
-function harness({ providerStorage = null, newsArticles = null } = {}) {
+function harness({
+  providerStorage = null,
+  newsArticles = null,
+  inventoryService = null,
+} = {}) {
   const f = railFixture();
   const original = f.document.createElement;
   f.document.createElement = (tag) => {
@@ -85,6 +89,7 @@ function harness({ providerStorage = null, newsArticles = null } = {}) {
     enableEarthquakes: async () => {},
     providerStorage,
     newsService: {
+      ...(inventoryService ? { getNewsSources: inventoryService } : {}),
       async searchNews(query) {
         searches.push(query);
         return {
@@ -424,5 +429,74 @@ test('provider preference is opt-in, validated, cleared, and never acquires news
     assert.equal(blocked.requests, 0);
   } finally {
     blocked.controller.destroy();
+  }
+});
+
+test('configured inventory loads metadata only, restores validated RSS preference and submits its ID', async () => {
+  let inventories = 0;
+  const entries = new Map([['gev.monitoring.news-provider.v1', 'rss:world']]);
+  const h = harness({
+    providerStorage: {
+      getItem: (key) => entries.get(key),
+      setItem: (key, value) => entries.set(key, value),
+      removeItem: (key) => entries.delete(key),
+    },
+    inventoryService: async () => {
+      inventories++;
+      return {
+        feeds: [
+          { id: 'world', label: 'World feed', host: 'feeds.publisher.org' },
+        ],
+      };
+    },
+  });
+  try {
+    assert.equal(inventories, 0);
+    h.button('MONITOR').click();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(inventories, 1);
+    assert.equal(h.requests, 0);
+    assert.equal(h.searches.length, 0);
+    const provider = h.find((n) => n.dataset.newsQuery === 'provider');
+    assert.equal(provider.value, 'rss:world');
+    h.find((n) => n.tagName === 'FORM').dispatchEvent(
+      new Event('submit', { cancelable: true }),
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(h.searches[0].provider, 'rss:world');
+    h.button('Close').click();
+    h.button('MONITOR').click();
+    assert.equal(inventories, 1, 'settled inventory is not fetched again');
+  } finally {
+    h.controller.destroy();
+  }
+});
+
+test('cancelled inventory cannot publish late options; user provider changes win over remembered RSS', async () => {
+  const pending = [];
+  const h = harness({
+    providerStorage: { getItem: () => 'rss:world', setItem() {} },
+    inventoryService: ({ signal }) =>
+      new Promise((resolve) => pending.push({ signal, resolve })),
+  });
+  const inventory = { feeds: [{ id: 'world', label: 'World feed' }] };
+  try {
+    h.button('MONITOR').click();
+    h.button('Close').click();
+    assert.equal(pending[0].signal.aborted, true);
+    pending[0].resolve(inventory);
+    await new Promise((resolve) => setImmediate(resolve));
+    const provider = h.find((n) => n.dataset.newsQuery === 'provider');
+    assert.equal(provider.children.length, 3);
+    h.button('MONITOR').click();
+    provider.value = 'gdelt';
+    provider.dispatchEvent(new Event('change'));
+    pending[1].resolve(inventory);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(provider.value, 'gdelt');
+    assert.equal(provider.children.length, 4);
+    assert.equal(h.searches.length, 0);
+  } finally {
+    h.controller.destroy();
   }
 });

@@ -14,6 +14,7 @@ export function createMonitoringNews({ service, publish, now = Date.now }) {
     lastAcceptedAt: null,
     lastOutcome: 'never',
     retryReason: null,
+    freshnessMs: 300000,
     retryAt: 0,
   };
   const emit = () => publish({ ...state });
@@ -49,6 +50,12 @@ export function createMonitoringNews({ service, publish, now = Date.now }) {
         ...state,
         rows,
         lastSuccess: payload.retrievedAt || null,
+        freshnessMs:
+          Number.isFinite(payload.newsFreshForMs) &&
+          payload.newsFreshForMs >= 300000 &&
+          payload.newsFreshForMs <= 86400000
+            ? payload.newsFreshForMs
+            : 300000,
         lastAcceptedAt:
           payload.newsStatus === 'unavailable' ? state.lastAcceptedAt : now(),
         lastOutcome:

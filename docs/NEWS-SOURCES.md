@@ -123,6 +123,15 @@ unavailable storage is handled without breaking monitoring. Loading a preference
 never starts a search; searches remain explicit. This is a configuration option
 for the existing providers, not support for arbitrary RSS URLs or extra feeds.
 
-Remaining work: evidence-backed canonical publisher resolution, configurable
-source inventories and broader syndication analysis. Provider restrictions and
+Remaining work: evidence-backed canonical publisher resolution, browser editing
+of source inventories and broader syndication analysis. Provider restrictions and
 attribution still apply. No new live-provider availability claim is made here.
+
+## Configured RSS inventory (2026-10-16)
+
+Operator-selected RSS feeds are now supported through a bounded local inventory.
+See [CONFIGURED-RSS.md](CONFIGURED-RSS.md) for `.env` setup, explicit-load behavior,
+format and transport limits, per-feed refresh intervals and provenance. No custom
+feed is enabled by default, and no feed's current availability or licence is
+asserted. This is recent-feed acquisition; geopolitical topic indexing, Atom and
+a browser source editor are not part of the increment.

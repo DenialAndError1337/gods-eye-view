@@ -26,6 +26,10 @@ const clean = (value) =>
     .replace(/[^\p{L}\p{N}\s.,'-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+export const isNewsProvider = (value) =>
+  typeof value === 'string' &&
+  (['auto', 'google', 'gdelt'].includes(value) ||
+    /^rss:[a-z][a-z0-9-]{0,31}$/.test(value));
 export function monitoringNewsQuery(params) {
   const allowed = new Set(['topic', 'keywords', 'region', 'hours', 'provider']);
   for (const key of params.keys())
@@ -37,7 +41,7 @@ export function monitoringNewsQuery(params) {
   const region = params.get('region') || '';
   if (
     !Object.hasOwn(NEWS_TOPICS, topic) ||
-    !['auto', 'google', 'gdelt'].includes(provider) ||
+    !isNewsProvider(provider) ||
     !['24', '48', '168'].includes(rawHours) ||
     keywords.length > 120 ||
     region.length > 80
