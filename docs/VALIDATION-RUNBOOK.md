@@ -221,3 +221,19 @@ compare an earlier committed version, first preserve uncommitted changes and
 identify the known-good commit from git log; create a separate branch at that
 commit rather than deleting current work. Do not use git reset --hard as a
 routine validation step.
+
+## Aircraft telemetry increment addendum
+
+The user reported all automated gates passed for the preceding validation-runner
+version on 2026-10-16. Preserve that result; it does not cover later source edits.
+After applying GEV_AIRCRAFT_HEALTH_UPDATE, rerun the automated command and add a
+new dated result. Focused mode now includes aircraft ingestion and layer-panel
+regressions as well as the earlier monitoring cases.
+
+Enable aircraft and inspect the source/status tooltip: Snapshot request describes
+adapter attempts and acceptance, Manager update describes manager-owned calls,
+and Source data timestamp retains source observation time. A successful cached
+response must not be described as newly acquired upstream data. Check normal
+tracking and changing military filtering while aircraft is active. If an actual
+retry interval occurs, skipped calls should not advance snapshot attempt time.
+Use fixtures for stale/failure/cancellation cases that do not occur live.

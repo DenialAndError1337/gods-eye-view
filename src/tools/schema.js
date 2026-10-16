@@ -114,7 +114,16 @@ export function validateValue(schema, value, path = 'arguments') {
           schema.maxLength != null ? schema.maxLength + 1 : 0,
         );
         let length = 0;
-        for (const _ of value) if (++length >= limit) break;
+        // Every code point occupies at most two UTF-16 units. When even that
+        // lower bound reaches our counting limit, both decisions are already
+        // known. Avoid starting an iterator over a potentially huge lazy string.
+        if (
+          Number.isSafeInteger(limit) &&
+          limit > 0 &&
+          value.length >= limit * 2
+        )
+          length = limit;
+        else for (const _ of value) if (++length >= limit) break;
         if (schema.minLength != null && length < schema.minLength)
           fail(`must be at least ${schema.minLength} characters`);
         if (schema.maxLength != null && length > schema.maxLength)

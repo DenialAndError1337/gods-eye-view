@@ -21,8 +21,11 @@ import {
 export const BASE_REF = '537e99dfa45a3f7b239ad6230a65be658b3ea29d';
 const focusedFiles = [
   'src/tooling/monitoringValidation.test.mjs',
+  'src/tools/tool-schema-codepoints.test.mjs',
   'src/monitoring/monitoring.test.mjs',
   'src/ui/monitoringPanel.test.mjs',
+  'src/ui/layerPanel.test.mjs',
+  'src/layers/flights/ingestion.test.mjs',
   'server/providers/monitoringNews.test.mjs',
   'server/providers/monitoringFeeds.test.mjs',
   'server/providers/monitoringFeedXml.test.mjs',

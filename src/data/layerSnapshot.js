@@ -162,6 +162,9 @@ export function layerSnapshot(layer = {}, { now = Date.now() } = {}) {
     ...(stats.refreshHealth
       ? { refreshHealth: { ...stats.refreshHealth } }
       : {}),
+    ...(stats.acquisitionHealth
+      ? { acquisitionHealth: { ...stats.acquisitionHealth } }
+      : {}),
   };
 }
 

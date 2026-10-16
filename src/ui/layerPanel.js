@@ -538,7 +538,8 @@ export class LayerPanel {
   _buildHealthTitle(layer) {
     const stats = layer.stats || {};
     const health = stats.refreshHealth;
-    if (!health) return '';
+    const acquisition = stats.acquisitionHealth;
+    if (!health && !acquisition) return '';
     const retry =
       Number.isFinite(stats.retryAt) && stats.retryAt > 0
         ? new Date(stats.retryAt).toISOString()
@@ -547,7 +548,13 @@ export class LayerPanel {
           : 'unknown';
     const stamp = (at) =>
       Number.isFinite(at) && at > 0 ? new Date(at).toISOString() : 'unknown';
-    return `Manager update: ${health.outcome}; last attempt ${stamp(health.lastAttempt)}; last completion ${stamp(health.lastCompletion)}; last successful completion ${stamp(health.lastSuccess)}. Completion does not establish upstream freshness. Source data timestamp: ${stamp(stats.lastUpdate)}. Source retry: ${retry}.`;
+    const manager = health
+      ? `Manager update: ${health.outcome}; last attempt ${stamp(health.lastAttempt)}; last completion ${stamp(health.lastCompletion)}; last successful completion ${stamp(health.lastSuccess)}. Completion does not establish upstream freshness. `
+      : '';
+    const source = acquisition
+      ? `Snapshot request: ${acquisition.outcome}; last attempt ${stamp(acquisition.lastAttempt)}; last completion ${stamp(acquisition.lastCompletion)}; last accepted ${stamp(acquisition.lastAccepted)}; last clean acceptance ${stamp(acquisition.lastSuccess)}. Acceptance does not establish a new upstream acquisition. `
+      : '';
+    return `${manager}${source}Source data timestamp: ${stamp(stats.lastUpdate)}. Source retry: ${retry}.`;
   }
 
   _buildMetaText(layer) {

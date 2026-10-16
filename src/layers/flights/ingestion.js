@@ -1,5 +1,15 @@
 import { ERROR_BACKOFF_INTERVAL } from './recordPolicy.js';
 
+export function createFlightAcquisitionHealth() {
+  return {
+    lastAttempt: null,
+    lastCompletion: null,
+    lastAccepted: null,
+    lastSuccess: null,
+    outcome: 'never',
+  };
+}
+
 /** Own acquisition, cancellation, freshness and backoff independently of rendering. */
 export function createIngestion({
   feed,
@@ -29,9 +39,24 @@ export function createIngestion({
       const updateSignal = signal
         ? AbortSignal.any([signal, resourceController.signal])
         : resourceController.signal;
+      let health = null;
+      const finish = (outcome, accepted = false, clean = false) => {
+        if (!health || feed._acquisitionHealth !== health) return;
+        const at = Date.now();
+        health.lastCompletion = at;
+        health.outcome = outcome;
+        if (accepted) health.lastAccepted = at;
+        if (clean) health.lastSuccess = at;
+      };
       try {
         updateSignal.throwIfAborted();
-        const snapshot = await feed._source.getSnapshot(getQuery(viewer), {
+        const query = getQuery(viewer);
+        health = feed._acquisitionHealth = {
+          ...(feed._acquisitionHealth || createFlightAcquisitionHealth()),
+          lastAttempt: Date.now(),
+          outcome: 'pending',
+        };
+        const snapshot = await feed._source.getSnapshot(query, {
           signal: updateSignal,
         });
         updateSignal.throwIfAborted();
@@ -61,10 +86,12 @@ export function createIngestion({
           source: feed._lastSource,
           coverage: feed._lastCoverage,
         };
+        finish(sourceStale ? 'degraded' : 'accepted', true, !sourceStale);
         console.log(`[Data:Flights] Updated: ${feed._count} aircraft`);
         applyPendingTrackingRestore();
       } catch (e) {
         if (updateSignal.aborted || e?.name === 'AbortError') {
+          finish('cancelled');
           throw new DOMException('Flights update aborted', 'AbortError');
         }
         console.warn('[Data:Flights] Fetch error:', e);
@@ -78,6 +105,7 @@ export function createIngestion({
         }
         feed._lastError =
           e?.name === 'LiveSourceError' ? e.message : 'Live data unavailable';
+        finish('failed');
       } finally {
         feed._activeUpdateControllers.delete(resourceController);
       }
@@ -91,6 +119,7 @@ export function createIngestion({
 export function createFlightFeed(source) {
   const feed = {};
   feed._source = source;
+  feed._acquisitionHealth = createFlightAcquisitionHealth();
   feed._count = 0;
   feed._lastUpdate = null;
   feed._backoff = false;

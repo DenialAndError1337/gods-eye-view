@@ -1056,5 +1056,6 @@
   "src/ui/flyToDataSource.test.mjs",
   "src/data/gbfsProxyRateLimit.test.mjs",
   "scripts/validate-monitoring.mjs",
-  "src/tooling/monitoringValidation.test.mjs"
+  "src/tooling/monitoringValidation.test.mjs",
+  "src/tools/tool-schema-codepoints.test.mjs"
 ]

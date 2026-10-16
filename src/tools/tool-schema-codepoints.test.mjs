@@ -31,3 +31,33 @@ test('tool string bounds hold at their edges and on huge arguments', () => {
   assert.equal(validateValue(string({ maxLength: 60 }), huge).length, 1);
   assert.ok(performance.now() - started < 200, 'stops counting past the limit');
 });
+
+test('length shortcut preserves code-point bounds for paired and unpaired surrogates', () => {
+  const values = [
+    '',
+    'a',
+    '😀',
+    '\ud800',
+    'a😀',
+    '😀😀',
+    'abcd',
+    '😀'.repeat(4),
+    'a'.repeat(8),
+    '\ud800'.repeat(8),
+  ];
+  for (const value of values) {
+    const count = Array.from(value).length;
+    for (let minLength = 0; minLength <= 8; minLength++) {
+      for (let maxLength = 0; maxLength <= 8; maxLength++) {
+        const actual = validateValue(
+          { type: 'string', minLength, maxLength },
+          value,
+        );
+        assert.equal(
+          actual.length,
+          Number(count < minLength) + Number(count > maxLength),
+        );
+      }
+    }
+  }
+});

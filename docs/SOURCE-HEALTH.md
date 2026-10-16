@@ -88,3 +88,54 @@ News cooldown reasons distinguish normal request spacing, source failure and
 rate limiting. The displayed deadline is when the user may request again; it does
 not schedule an automatic request. Existing cooldown bounds and late-response
 rejection remain in place.
+
+## Aircraft snapshot-request history
+
+Aircraft stats and layer snapshots now expose a copied `acquisitionHealth`
+envelope, independent of manager-owned `refreshHealth`:
+
+| Field          | Meaning                                                                         |
+| -------------- | ------------------------------------------------------------------------------- |
+| lastAttempt    | Start of an actual call to the configured source adapter's getSnapshot          |
+| lastCompletion | Settlement of the most recent request, including failure/cancellation           |
+| lastAccepted   | Most recent accepted snapshot for this request history, including degraded data |
+| lastSuccess    | Most recent acceptance without the source's stale/unknown-freshness flag        |
+| outcome        | never, pending, accepted, degraded, failed or cancelled                         |
+
+A call skipped during existing backoff, or aborted before acquisition, does not
+change this history. A failed/cancelled call preserves accepted/clean times;
+a stale or unknown-freshness snapshot advances accepted time but not clean time.
+New attempts retain earlier settled times while pending. The latest attempt owns
+telemetry publication; an older completion cannot replace it. Public stats and
+snapshots return copies. Layer initialization resets this source-history lifetime.
+
+This observes adapter calls made through aircraft ingestion, including direct
+refreshes outside the manager. It does not measure individual fallback-provider
+requests inside an adapter, validate upstream timestamps, or turn cached data into
+a new upstream acquisition. Original source observation time remains lastUpdate.
+The existing retry deadline is exposed as retryAt alongside retryInSec; it is not
+a new retry promise or timer. Hover the aircraft source/status line to compare
+request acceptance, manager completion, source age and retry information.
+
+### Initial coverage inventory
+
+This is the first scoped inventory, not an audit of every layer family.
+
+| Path                                               | Ownership / existing evidence                                                                                                                                         | Status / remaining work                                                                                                                             |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aircraft ingestion and military-filter change hook | src/layers/flights/ingestion.js; tracking.js calls flightsLayer.update directly when military filtering changes                                                       | Request history now covers both direct and manager calls. Provider-level fallback subrequests remain outside it.                                    |
+| AIS vessel snapshots / server transport            | src/layers/vessels/ingestion.js and queries.js already expose transportStatus, lastMessageAt and retryInSec; src/data/aisWatchdog.js owns transport watchdog behavior | Preserve message time versus position/data time. Connection-attempt history is a later slice; no new socket loop added.                             |
+| Bike-share proximity activation                    | src/layers/bikeshare/viewport.js camera debounce can activate cities separately from normal update; ingestion.js owns refresh                                         | Existing per-city failure/staleness handling retained. Per-city request-history assessment remains open.                                            |
+| Canadian AQHI                                      | src/layers/airQuality/index.js owns cancellable updates; source.js bounds acquisition                                                                                 | Existing observed-time/error status retained; no new independent polling loop identified in this inspected module.                                  |
+| Satellite core and optional dense shell            | src/layers/satellites/ingestion.js and catalog.js                                                                                                                     | Existing core/dense acceptance and original proxy-cache provenance retained. Per-group request timeline remains outside the common manager history. |
+| Monitoring news and configured RSS/Atom            | src/monitoring/news.js plus server/providers/monitoringFeeds.js                                                                                                       | Existing explicit request ownership/cooldown and server per-feed cache timing retained. Browser acceptance is not server upstream acquisition.      |
+
+### Increment acceptance
+
+Enable aircraft and inspect its source/status tooltip. On a successful adapter
+response, snapshot request outcome becomes accepted or degraded; source timestamp
+retains the adapter's observation time. During a reported retry interval, skipped
+updates must not advance attempt time. Confirm usual tracking and military-filter
+interactions still work. Use fixture tests for deterministic stale/error/cancelled
+cases rather than provoking live provider outages. This increment requires a new
+validation run; the user's previous all-green report predates it.

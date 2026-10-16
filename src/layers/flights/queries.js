@@ -955,6 +955,10 @@ export function createQueries({
         error: flightState.feed._lastError,
         status: flightState.feed._lastStatus,
         retryInSec,
+        ...(flightState.feed._retryAt > 0
+          ? { retryAt: flightState.feed._retryAt }
+          : {}),
+        acquisitionHealth: { ...flightState.feed._acquisitionHealth },
         source: flightState.feed._lastSource,
         coverage: flightState.feed._lastCoverage,
       };

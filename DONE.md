@@ -2,8 +2,9 @@
 
 Updated 2026-10-16. This file records completed implementation, evidence and
 known limits. User acceptance is tracked separately in
-[validation results](docs/VALIDATION-RESULTS.md). No laptop validation results
-have been supplied for the accumulated updates.
+[validation results](docs/VALIDATION-RESULTS.md). The user reported all automated gates, including both allocation probes, PASS
+on their laptop at 18:23 Europe/Brussels on 2026-10-16; browser/live/GPU/long-session
+acceptance remains pending.
 
 The [original TODO / milestone log](docs/history/IMPLEMENTATION-LOG.md) is
 preserved in full, including per-increment test counts, files and earlier backlog
@@ -11,20 +12,23 @@ wording. Its “next” sections are historical; current work is in [TODO.md](TO
 
 ## Delivery order and installation context
 
-| Delivery                                | Purpose                                                                  | Installation relationship                                                                                 |
-| --------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| GEV_MILESTONE_1 through GEV_MILESTONE_4 | Initial custom monitoring and health work                                | Superseded by the reconciled source delivery; do not overlay these old ZIPs again                         |
-| GEV_RECONCILED_SOURCE_2026-10-16        | Full source reconciled with upstream                                     | Starting point for the subsequent increments; customization patch applies to pinned upstream commit below |
-| GEV_NEWS_PROVENANCE_UPDATE              | Link provenance, related-report groups, remembered provider              | Apply after reconciled source                                                                             |
-| GEV_CONFIGURED_RSS_UPDATE               | Operator-configured HTTPS feed sources                                   | Apply after news provenance                                                                               |
-| GEV_ATOM_FEEDS_UPDATE                   | Strict Atom/RSS XML parsing, timestamp provenance, custom source filters | Apply after configured RSS; run npm ci because a dependency was added                                     |
-| GEV_VALIDATION_CHECKPOINT               | TODO/DONE split, preserved history and validation runbook/results        | Documentation increment after Atom; no application code or dependencies changed                           |
-| GEV_VALIDATION_RUNNER_UPDATE            | Automated checks with local per-gate logs and reports                    | Apply after the validation checkpoint; no new dependencies                                                |
+| Delivery                                | Purpose                                                                                          | Installation relationship                                                                                 |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| GEV_MILESTONE_1 through GEV_MILESTONE_4 | Initial custom monitoring and health work                                                        | Superseded by the reconciled source delivery; do not overlay these old ZIPs again                         |
+| GEV_RECONCILED_SOURCE_2026-10-16        | Full source reconciled with upstream                                                             | Starting point for the subsequent increments; customization patch applies to pinned upstream commit below |
+| GEV_NEWS_PROVENANCE_UPDATE              | Link provenance, related-report groups, remembered provider                                      | Apply after reconciled source                                                                             |
+| GEV_CONFIGURED_RSS_UPDATE               | Operator-configured HTTPS feed sources                                                           | Apply after news provenance                                                                               |
+| GEV_ATOM_FEEDS_UPDATE                   | Strict Atom/RSS XML parsing, timestamp provenance, custom source filters                         | Apply after configured RSS; run npm ci because a dependency was added                                     |
+| GEV_VALIDATION_CHECKPOINT               | TODO/DONE split, preserved history and validation runbook/results                                | Documentation increment after Atom; no application code or dependencies changed                           |
+| GEV_VALIDATION_RUNNER_UPDATE            | Automated checks with local per-gate logs and reports                                            | Apply after the validation checkpoint; no new dependencies                                                |
+| GEV_AIRCRAFT_HEALTH_UPDATE              | Aircraft snapshot-request history, scoped telemetry inventory and recorded laptop automated pass | Apply after the validation runner update; manual acceptance still pending                                 |
 
 Pinned upstream: `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
 The user reported committing the reconciled customization as `d068dcbd` and
-pushing `gev/osint-dashboard`. Later installed commits and acceptance outcomes
-have not been confirmed. Never infer installation from delivery alone.
+pushing `gev/osint-dashboard`. The later uploaded validation report identified
+clean commit `a1eec9eee1591980100a0770d0addd6aded01018`; after npm ci the user
+reported a passing full automated rerun. Manual acceptance remains pending.
+Never infer installation or acceptance from delivery alone.
 
 ## 1. Shared monitoring panel — 2026-10-15
 
@@ -195,6 +199,68 @@ The delivery is an incremental patch after GEV_VALIDATION_CHECKPOINT.
 | Initial stylesheet ordering                             | Tests caught Cyber no longer being last. Corrected ordering; preserve that requirement in future CSS changes.                                                                       |
 | ReliefWeb without approved identity                     | Read-only probe returned 403. Wait for an approved appname; do not repeatedly try unapproved names.                                                                                 |
 | Google News canonical URL assumption                    | No verified resolution implemented. Retain aggregator provenance; do not treat tracking normalization as canonical verification.                                                    |
+
+## 11. Aircraft snapshot-request history and verification fixes — 2026-10-16
+
+Implemented the first independent-source telemetry slice. Aircraft ingestion
+records source-adapter attempt, completion, accepted and last clean acceptance
+times, including direct updates outside manager refreshes. Backoff-skipped and
+pre-aborted calls do not count as attempts. Failure/cancellation/degraded
+acceptance preserve the prior clean acceptance. Late superseded completions
+cannot overwrite the current attempt's telemetry. Initialization starts a new
+source-history lifetime; public stats/snapshots copy the envelope.
+
+The source/status tooltip distinguishes manager history, snapshot-request history,
+source observation time and the existing retry deadline. Source-adapter acceptance
+is not a claim of a new upstream fetch. Acquisition, polling, retry policy and
+record-selection behavior are unchanged. Coverage inventory and remaining gaps
+are in docs/SOURCE-HEALTH.md. No dependencies or new requests were added.
+
+User validation evidence for the preceding increment: the first laptop run failed
+20 test files and the build because @xmldom/xmldom was not installed. After npm ci,
+the user reported all automated gates PASS, including both allocation probes.
+That report validates the preceding delivery, not this new telemetry increment.
+The rerun commit was not reprinted; the previous uploaded report identified
+clean commit a1eec9eee1591980100a0770d0addd6aded01018 on Node 24.21.0/Linux.
+
+Final targeted verification: 48 tests passed across aircraft ingestion, copied
+snapshots, layer tooltips, traffic navigation and Unicode string bounds. The
+final actual default runner passed 217 tests, production build (849 modules,
+38.99 seconds; existing large-chunk warnings), adopted formatting, import/package
+boundaries, layer-token compatibility and whitespace checks. Patch application,
+resulting tree identity and documentation links/formatting were also checked.
+Allocation probes and real-browser acceptance for this new increment remain
+pending on the user's machine.
+
+During full verification, the unchanged tool-schema 200 ms huge-string check
+failed (and failed in isolated rechecks). Its bounded code-point loop still began
+iterating a 100-million-character string. Added a constant-time UTF-16 lower-bound
+shortcut when length already proves the counting limit is reached; ambiguous
+cases retain code-point iteration. Existing min/max behavior, including paired
+and unpaired surrogates, is covered by a new independent-count comparison test.
+The original 200 ms assertion is unchanged and passed after the fix (4.75 ms
+for its test case). The focused runner now includes this regression too. This is
+an additional validator optimization included in this delivery, not a relaxation
+of the test threshold.
+
+The initial ordinary run had 7,145 passes, one failure and one skip. Its failed
+check was the tool-schema timing case described above; that result was not
+reported as a pass. An intermediate ordinary recheck was interrupted to apply
+the validator fix. The subsequent ordinary run had 7,144 passes, three failures
+and one skip (7,148 tests): two unchanged CCTV launcher fixtures hit their
+30-second process deadlines and one traffic navigation fixture expected a fetch
+before a time-sliced parser had completed. Both CCTV cases passed in a serialized
+isolated recheck (11.08 and 9.08 seconds). The traffic fixture now stabilizes its
+performance-budget clock alongside its fake timers; its existing road-request
+assertions are unchanged, and its full navigation file passed in the final
+48-test targeted run. No timeout or allocation threshold was raised, and no
+assertion was removed. A clean single full-suite run for this increment is still
+pending on the user's host; isolated rechecks do not turn a failed aggregate run
+into a pass.
+
+Your active docs/VALIDATION-RESULTS.md template is excluded from this patch so
+ongoing manual notes are preserved; the reported automated evidence is recorded
+in this DONE file.
 
 ## Updating this record
 

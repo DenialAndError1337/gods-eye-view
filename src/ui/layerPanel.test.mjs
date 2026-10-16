@@ -309,3 +309,29 @@ test('layer health details separate manager completion, source age and reported 
   assert.match(title, /does not establish upstream freshness/);
   assert.equal(LayerPanel.prototype._buildHealthTitle({}), '');
 });
+
+test('layer tooltip separates direct snapshot requests from manager history and data time', async () => {
+  const { LayerPanel } = await import('./layerPanel.js');
+  const title = LayerPanel.prototype._buildHealthTitle({
+    stats: {
+      lastUpdate: 1000,
+      retryAt: 30000,
+      acquisitionHealth: {
+        outcome: 'degraded',
+        lastAttempt: 9000,
+        lastCompletion: 10000,
+        lastAccepted: 10000,
+        lastSuccess: null,
+      },
+    },
+  });
+  assert.match(title, /Snapshot request: degraded/);
+  assert.match(title, /last clean acceptance unknown/);
+  assert.match(
+    title,
+    /Acceptance does not establish a new upstream acquisition/,
+  );
+  assert.match(title, /Source data timestamp: 1970-01-01T00:00:01.000Z/);
+  assert.match(title, /Source retry: 1970-01-01T00:00:30.000Z/);
+  assert.doesNotMatch(title, /Manager update/);
+});

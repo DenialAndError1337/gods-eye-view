@@ -360,6 +360,10 @@ test('coverage changes at the same center reload and disabling invalidates cover
 });
 
 test('a settled footprint loads new tiles even when the camera centre stays put', async (t) => {
+  // This case exercises viewport debounce, not parser time slicing. Keep the
+  // budget clock deterministic alongside the mocked timers: a slow host must
+  // not introduce extra parser yields after the single tick below.
+  t.mock.method(performance, 'now', () => 0);
   const seen = [];
   const { layer, viewer, tick } = setup(
     t,

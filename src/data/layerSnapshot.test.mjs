@@ -314,3 +314,19 @@ test('snapshot carries only explicitly reported finite retry metadata', () => {
   assert.equal(unknown.retryAt, undefined);
   assert.equal(unknown.retryInSec, undefined);
 });
+
+test('snapshot copies source request history without treating acceptance as data time', () => {
+  const health = {
+    lastAttempt: 9000,
+    lastAccepted: 10000,
+    outcome: 'accepted',
+  };
+  const snapshot = layerSnapshot(
+    { enabled: true, stats: { lastUpdate: 1000, acquisitionHealth: health } },
+    { now: 11000 },
+  );
+  assert.equal(snapshot.ageSec, 10);
+  assert.deepEqual(snapshot.acquisitionHealth, health);
+  snapshot.acquisitionHealth.outcome = 'changed';
+  assert.equal(health.outcome, 'accepted');
+});
