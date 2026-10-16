@@ -14,12 +14,14 @@ import { gbfsProxy } from '../../../server/providers/gbfs.js';
 import { localProviderPlugins } from '../../../server/providers/local.js';
 import { createBikeshareSource } from './source.js';
 import { createModel } from './model.js';
+import { parseGbfsUpdatedAt } from '../../sources/gbfsStations.js';
 import { CITY_BY_ID } from './registry.js';
 
 const AUSTIN = CITY_BY_ID.get('austin-capmetro');
 const OSLO = CITY_BY_ID.get('oslo-bysykkel');
 
 const STATION_INFORMATION = {
+  last_updated: 1792177200,
   data: {
     stations: [
       {
@@ -34,6 +36,7 @@ const STATION_INFORMATION = {
 };
 
 const STATION_STATUS = {
+  last_updated: '2026-10-16T21:00:00+02:00',
   data: {
     stations: [
       {
@@ -155,6 +158,11 @@ test('the station source reaches the mounted proxy and both documents join into 
     'the proxy reached the upstream the client asked for, unchanged',
   );
 
+  assert.equal(parseGbfsUpdatedAt(info.last_updated), 1792177200000);
+  assert.equal(
+    parseGbfsUpdatedAt(status.last_updated),
+    Date.parse('2026-10-16T19:00:00Z'),
+  );
   const model = createModel({});
   const infoMap = model.parseStationInformation(info);
   const statusMap = model.parseStationStatus(status);

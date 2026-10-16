@@ -31,6 +31,8 @@ const focusedFiles = [
   'src/layers/bikeshare/failureReporting.test.mjs',
   'src/layers/bikeshare/latamPbscCities.test.mjs',
   'src/data/bikeshare.test.mjs',
+  'src/sources/gbfsStations.test.mjs',
+  'src/layers/bikeshare/proxyRoute.test.mjs',
   'src/data/aisWatchdog.test.mjs',
   'src/data/aisStreamAdapter.test.mjs',
   'src/data/aisWatchdogTransport.test.mjs',

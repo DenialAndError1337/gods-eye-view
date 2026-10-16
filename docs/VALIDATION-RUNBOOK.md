@@ -295,3 +295,18 @@ commit; this patch leaves the active results template untouched.
 
 Saved keywords/regions stay on this device until deleted or browser storage is
 cleared. Do not store sensitive presets on a shared device unless intended.
+
+## GBFS feed-update timestamp acceptance
+
+1. Enable Bike Share near an existing registered city. Inspect the layer source/status
+   tooltip for separate information/status operator feed updated (reported) fields.
+2. Compare each claim with its local accepted time. Equal operator times across
+   requests must stay equal; local acceptance must not be substituted when missing.
+3. Move out/back while session information is cached. Information attempt/acceptance
+   and reported update should remain unchanged. Allow normal status polling; no
+   extra polling interval should appear. Check station selection still works.
+4. Treat unknown operator timestamps as unknown and record live provider limitations.
+   Use automated fixtures for missing/invalid timestamps and cancellation; do not
+   manufacture outages. Cache MISS alone is not proof of a fresh acquisition.
+5. Record observed results and tested commit in VALIDATION-RESULTS.md, retaining
+   earlier reports against their own versions.

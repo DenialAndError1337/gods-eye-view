@@ -229,3 +229,80 @@ test('one city recovery cannot overwrite a neighbouring city failure history', a
   assert.equal(rows.get(otherId).status.lastCompletion, 1000);
   assert.equal(rows.get(otherId).status.lastAccepted, null);
 });
+
+test('operator update claims survive cache reuse/failure but missing timestamps on new data become unknown', async (t) => {
+  let at = 2000000000000;
+  t.mock.method(Date, 'now', () => at);
+  let fail = false,
+    include = true;
+  const operatorAt = Date.parse('2026-10-16T19:00:00Z');
+  const probe = setup(async (url) => {
+    if (fail) throw new Error('fixture outage');
+    return {
+      ...(url === city.stationInformationUrl ? information() : status()),
+      ...(include
+        ? {
+            last_updated:
+              url === city.stationInformationUrl
+                ? operatorAt / 1000
+                : '2026-10-16T21:00:00+02:00',
+          }
+        : {}),
+    };
+  });
+  await probe.ingestion.loadCityStationInfo(cityId, 1);
+  await probe.ingestion.loadCityStationStatus(cityId, 1);
+  let row = probe.stats().cityAcquisitionHealth[0];
+  assert.equal(row.status.operatorUpdatedAt, operatorAt);
+  assert.equal(row.status.lastAccepted, at);
+  assert.notEqual(row.status.lastAccepted, operatorAt);
+  row.status.operatorUpdatedAt = 1;
+  assert.equal(
+    probe.stats().cityAcquisitionHealth[0].status.operatorUpdatedAt,
+    operatorAt,
+  );
+  at += 1000;
+  fail = true;
+  await assert.rejects(probe.ingestion.loadCityStationStatus(cityId, 2));
+  assert.equal(
+    probe.stats().cityAcquisitionHealth[0].status.operatorUpdatedAt,
+    operatorAt,
+  );
+  await probe.ingestion.loadCityStationInfo(cityId, 2);
+  assert.equal(
+    probe.stats().cityAcquisitionHealth[0].information.operatorUpdatedAt,
+    operatorAt,
+  );
+  fail = false;
+  include = false;
+  at += 1000;
+  await probe.ingestion.loadCityStationStatus(cityId, 3);
+  row = probe.stats().cityAcquisitionHealth[0];
+  assert.equal(row.status.operatorUpdatedAt, null);
+  assert.equal(row.status.lastAccepted, at);
+  assert.equal(row.information.operatorUpdatedAt, operatorAt);
+  assert.equal(probe.state._lastUpdate, null);
+});
+
+test('cancelled late responses cannot change retained operator update evidence', async () => {
+  const late = deferred();
+  let calls = 0;
+  const operatorAt = Date.parse('2026-10-16T19:00:00Z');
+  const probe = setup(() =>
+    ++calls === 1
+      ? { ...status(), last_updated: operatorAt / 1000 }
+      : late.promise,
+  );
+  await probe.ingestion.loadCityStationStatus(cityId, 1);
+  const pending = probe.ingestion.loadCityStationStatus(cityId, 2);
+  const rejected = assert.rejects(pending, { name: 'AbortError' });
+  probe.ingestion.abortInFlight(probe.state._inFlightStatus, cityId);
+  await rejected;
+  late.resolve({ ...status(), last_updated: (operatorAt + 1000) / 1000 });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(
+    probe.stats().cityAcquisitionHealth[0].status.operatorUpdatedAt,
+    operatorAt,
+  );
+});

@@ -350,8 +350,8 @@ test('GBFS city histories copy both channels and retain explicit local timestamp
   const city = {
     cityId: 'fixture',
     active: true,
-    information: { lastAccepted: 9000 },
-    status: { lastAccepted: 10000 },
+    information: { lastAccepted: 9000, operatorUpdatedAt: 3000 },
+    status: { lastAccepted: 10000, operatorUpdatedAt: 4000 },
   };
   const snap = layerSnapshot(
     {
@@ -366,6 +366,13 @@ test('GBFS city histories copy both channels and retain explicit local timestamp
   );
   assert.equal(snap.ageSec, 11);
   assert.equal(snap.lastUpdateMeaning, 'local-acceptance');
+  assert.equal(
+    snap.cityAcquisitionHealth[0].information.operatorUpdatedAt,
+    3000,
+  );
+  assert.equal(snap.cityAcquisitionHealth[0].status.operatorUpdatedAt, 4000);
+  snap.cityAcquisitionHealth[0].status.operatorUpdatedAt = 0;
+  assert.equal(city.status.operatorUpdatedAt, 4000);
   snap.cityAcquisitionHealth[0].information.lastAccepted = 1;
   snap.cityAcquisitionHealth[0].status.lastAccepted = 2;
   assert.equal(city.information.lastAccepted, 9000);

@@ -1,4 +1,5 @@
 import { CITY_BY_ID } from './registry.js';
+import { parseGbfsUpdatedAt } from '../../sources/gbfsStations.js';
 
 export function createIngestion({
   state: layerState,
@@ -57,6 +58,7 @@ export function createIngestion({
     const history = layerState._cityAcquisitionHealth;
     const city = history.get(cityId) || {};
     const health = {
+      operatorUpdatedAt: null,
       lastAccepted: null,
       lastCompletion: null,
       ...city[channel],
@@ -105,6 +107,7 @@ export function createIngestion({
       const value = parse(payload);
       assertCurrent();
       commit(value);
+      health.operatorUpdatedAt = parseGbfsUpdatedAt(payload?.last_updated);
       finish('accepted');
       return value;
     } catch (error) {

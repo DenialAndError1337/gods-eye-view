@@ -569,7 +569,7 @@ export class LayerPanel {
           a.cityId.localeCompare(b.cityId),
       );
     const channel = (name, value) =>
-      `${name}: ${value?.outcome || 'never'}; attempt ${stamp(value?.lastAttempt)}; completion ${stamp(value?.lastCompletion)}; accepted ${stamp(value?.lastAccepted)}`;
+      `${name}: ${value?.outcome || 'never'}; attempt ${stamp(value?.lastAttempt)}; completion ${stamp(value?.lastCompletion)}; accepted ${stamp(value?.lastAccepted)}; operator feed updated (reported) ${stamp(value?.operatorUpdatedAt)}`;
     const gbfs = cities.length
       ? `GBFS city requests: ${
           currentCities
@@ -579,7 +579,7 @@ export class LayerPanel {
                 `${city.city} (${city.failed ? 'failed' : 'active'}): ${channel('information', city.information)}; ${channel('status', city.status)}`,
             )
             .join(' | ') || 'no active or failed cities'
-        }${currentCities.length > 8 ? `; ${currentCities.length - 8} additional current cities` : ''}. Adapter acceptance does not establish upstream freshness. `
+        }${currentCities.length > 8 ? `; ${currentCities.length - 8} additional current cities` : ''}. Adapter acceptance does not establish upstream freshness. Operator feed time is not station last_reported. `
       : '';
     const timestampLabel =
       stats.lastUpdateMeaning === 'local-acceptance'

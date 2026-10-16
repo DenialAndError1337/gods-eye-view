@@ -393,3 +393,37 @@ test('GBFS tooltip prioritizes failed cities, caps details and labels local acce
     'rendering does not reorder source stats',
   );
 });
+
+test('GBFS tooltip separates reported feed update from acceptance and station timestamps', async () => {
+  const { LayerPanel } = await import('./layerPanel.js');
+  const title = LayerPanel.prototype._buildHealthTitle({
+    stats: {
+      cityAcquisitionHealth: [
+        {
+          cityId: 'one',
+          city: 'Fixture',
+          active: true,
+          information: {
+            outcome: 'accepted',
+            lastAccepted: 3000,
+            operatorUpdatedAt: 1000,
+          },
+          status: {
+            outcome: 'accepted',
+            lastAccepted: 4000,
+            operatorUpdatedAt: null,
+          },
+        },
+      ],
+    },
+  });
+  assert.match(
+    title,
+    /accepted 1970-01-01T00:00:03.000Z; operator feed updated \(reported\) 1970-01-01T00:00:01.000Z/,
+  );
+  assert.match(
+    title,
+    /accepted 1970-01-01T00:00:04.000Z; operator feed updated \(reported\) unknown/,
+  );
+  assert.match(title, /Operator feed time is not station last_reported/);
+});

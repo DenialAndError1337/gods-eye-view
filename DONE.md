@@ -25,6 +25,7 @@ wording. Its “next” sections are historical; current work is in [TODO.md](TO
 | GEV_AIS_TRANSPORT_HEALTH_UPDATE         | AIS watchdog event history from server to tooltip                                                | Apply after the aircraft-health update; no dependencies or retry policy changes                           |
 | GEV_BIKESHARE_HEALTH_UPDATE             | Per-city GBFS request history and cancellation ownership                                         | Apply after the AIS transport update; no new dependencies or polling intervals                            |
 | GEV_SAVED_VIEWS_UPDATE | Explicit local filter/region presets | Apply after the bike-share health update; no new dependencies |
+| GEV_GBFS_TIMESTAMP_UPDATE | Reported operator feed-update timestamps and cache-boundary assessment | Apply after the saved-views update; no new dependencies |
 
 Pinned upstream: `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
 The user reported committing the reconciled customization as `d068dcbd` and
@@ -371,6 +372,46 @@ gate and retained a complete 475-pass log. Patch application and resulting tree
 identity, documentation links and unchanged manual notes/history were verified.
 Browser layout/focus, GPU, live feeds and long-session acceptance remain pending on
 the user's host. Active manual validation notes are excluded from this patch.
+
+## 15. GBFS reported feed-update timestamps — 2026-10-16
+
+Retain each accepted information/status document's top-level last_updated as
+operatorUpdatedAt, separately from local acceptance and station last_reported.
+Numeric Unix seconds and bounded explicit-zone RFC3339 timestamps normalize to
+milliseconds; invalid calendar dates, missing values, numeric strings, unsafe or
+millisecond-shaped numbers and unsupported leap seconds remain unknown. Future
+operator clock claims remain reported claims, not new freshness evidence.
+
+Failure/cancellation and static information-cache reuse retain the prior accepted
+claim. Newly accepted documents with missing/invalid metadata clear it to unknown.
+Existing request ownership prevents cancelled late responses from changing it.
+Copied layer stats/shared snapshots retain the primitive; source tooltips label
+it as reported operator feed time, separate from station reporting and acceptance.
+No polling, cache, source-age classification or retry policy changes were made.
+
+Cache assessment found no application memory/disk cache in the GBFS proxy route;
+HTTP station-information responses allow max-age=300, while other supported paths
+use no-store. X-GBFS-Cache is a literal MISS and can be replayed with a cached HTTP
+response. The adapter exposes no header provenance and the proxy adds no upstream
+acquisition epoch. These times remain unknown; no acquisition timestamp is invented.
+The proxy's old 15-system comment was recorded as stale documentation, not used
+as runtime policy evidence. Official GBFS references are linked in SOURCE-HEALTH.md.
+
+Verification: 71 final affected tests passed, including real mounted-proxy body
+relay and existing cache/security behavior, both timestamp forms, calendar/range
+validation, cached information, failures, cancellation, clearing unknown metadata,
+public snapshot copies and tooltip distinctions. Full ordinary suite: 7,173 tests,
+7,172 passed, one skipped, zero failed (51.96 seconds), existing allocation partition.
+Default runner passed 501 focused tests, production build (9.01 seconds), formatting
+(1,415 files), import/package boundaries, layer-token compatibility and whitespace.
+The initial focused gate reported success but its retained file lacked the final
+summary; repeated that gate with captured pipes, retaining complete 501-pass output
+and the initial incomplete log. This is an evidence-capture limitation, not a
+reclassified test failure. Patch application/result-tree identity, documentation
+links and unchanged active manual notes/history were verified.
+Manual/browser/live provider and allocation acceptance for this version remain
+pending. The active validation-results file and archived implementation log are
+excluded from this increment.
 
 ## Updating this record
 

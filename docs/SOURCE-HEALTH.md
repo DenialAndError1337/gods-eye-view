@@ -125,7 +125,7 @@ This is the first scoped inventory, not an audit of every layer family.
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Aircraft ingestion and military-filter change hook | src/layers/flights/ingestion.js; tracking.js calls flightsLayer.update directly when military filtering changes                                                       | Request history now covers both direct and manager calls. Provider-level fallback subrequests remain outside it.                                                                   |
 | AIS vessel snapshots / server transport            | src/layers/vessels/ingestion.js and queries.js already expose transportStatus, lastMessageAt and retryInSec; src/data/aisWatchdog.js owns transport watchdog behavior | Preserve message time versus position/data time. Watchdog connection-attempt/handshake/failure history is now exposed end to end (see below); no new socket loop added.            |
-| Bike-share proximity activation                    | src/layers/bikeshare/viewport.js camera debounce can activate cities separately from normal update; ingestion.js owns refresh                                         | Existing per-city failure/staleness handling retained. Per-city information/status adapter history is now exposed (see below); operator publication-time parsing remains separate. |
+| Bike-share proximity activation                    | src/layers/bikeshare/viewport.js camera debounce can activate cities separately from normal update; ingestion.js owns refresh                                         | Existing per-city failure/staleness handling retained. Per-city information/status adapter history is now exposed (see below); reported feed-update timestamps are now retained separately (see below). |
 | Canadian AQHI                                      | src/layers/airQuality/index.js owns cancellable updates; source.js bounds acquisition                                                                                 | Existing observed-time/error status retained; no new independent polling loop identified in this inspected module.                                                                 |
 | Satellite core and optional dense shell            | src/layers/satellites/ingestion.js and catalog.js                                                                                                                     | Existing core/dense acceptance and original proxy-cache provenance retained. Per-group request timeline remains outside the common manager history.                                |
 | Monitoring news and configured RSS/Atom            | src/monitoring/news.js plus server/providers/monitoringFeeds.js                                                                                                       | Existing explicit request ownership/cooldown and server per-feed cache timing retained. Browser acceptance is not server upstream acquisition.                                     |
@@ -216,8 +216,9 @@ Public stats and shared snapshots copy rows and both nested channel objects.
 These are adapter timings. The original layer lastUpdate and status-cache timestamp
 are local acceptance/refresh times; they are not operator publication time or a
 station's last_reported. Stats/snapshots now state lastUpdateMeaning as
-local-acceptance, and the tooltip labels that timestamp accordingly. No new remote
-publication-time parsing, source-age classification or retry promise is introduced.
+local-acceptance, and the tooltip labels that timestamp accordingly. Operator feed
+update claims are retained separately as described below. Source-age classification
+and retry behavior are unchanged.
 
 Cancellation settles local callers and releases their loading reference once,
 even if a custom source ignores abort. Such late results cannot write either
@@ -236,3 +237,55 @@ without later cancelled responses overwriting newer state. Use deterministic
 fixtures for ignored-abort/failure conditions rather than forcing live outages.
 Treat absent/out-of-range cities or provider outages as the actual observed
 condition; do not mark a live-source check passed without accepted data.
+
+## GBFS reported feed update and cache assessment
+
+Each accepted information/status channel now retains `operatorUpdatedAt` in epoch
+milliseconds from that document's top-level `last_updated`. This is the operator's
+reported feed-update time, shown separately from attempt/completion/local acceptance.
+It is not a station's `last_reported`, a verified observation, or proof of a fresh
+network acquisition. The [GBFS v2.3 reference](https://github.com/MobilityData/gbfs/blob/v2.3/gbfs.md)
+uses integer Unix seconds; the [GBFS v3 reference](https://gbfs.org/documentation/reference/)
+uses RFC3339 timestamps. Both representations are accepted without changing the
+existing station parser or requiring an asserted version to be trusted.
+
+Missing, invalid, numeric-string, out-of-range numeric (including contemporary millisecond values) and unsupported
+leap-second timestamps remain unknown. Explicit timezones and valid calendar dates
+are required for strings. Numeric seconds must be positive safe integers within
+year 9999; string input is bounded to 64 characters and normalized to milliseconds.
+Submillisecond precision is limited by JavaScript Date. A future operator clock
+claim is displayed as reported, not corrected to the browser clock or treated as
+evidence of freshness. No new stale threshold, severity rule or retry is introduced.
+
+Cache hits for session-static information keep the same operator time. Failed or
+cancelled requests retain the last accepted document's claim. A newly accepted
+document with no valid timestamp clears that channel's claim to unknown, rather
+than attaching an earlier document's time to new data. Retired requests cannot
+advance it. Stats and shared snapshots copy the scalar with each channel.
+
+### Verified cache boundaries in this checkout
+
+| Boundary | Inspected implementation | What it establishes |
+| --- | --- | --- |
+| Layer information cache | src/layers/bikeshare/ingestion.js | Per-city session reuse; no new adapter attempt or operator update |
+| Layer status cache | same module | Local acceptance time for fallback/rendering; not remote publication |
+| GBFS proxy | server/providers/gbfs.js | Each admitted middleware request calls fetchGbfsUpstream; no application memory/disk response cache in this route |
+| HTTP response policy | src/data/gbfsSource.js, gbfsCacheControl | station_information responses allow public max-age=300; other supported paths use no-store |
+| Proxy marker | server/providers/gbfs.js | X-GBFS-Cache is a literal MISS; a replayed HTTP-cached response can retain it, so it does not prove a new upstream acquisition |
+
+The proxy relays the body without adding a successful-upstream-acquisition epoch.
+The browser adapter currently returns only the document, not response-header
+provenance. Consequently upstream acquisition time, upstream CDN cache age and
+browser-cache provenance remain unknown; this update does not invent them or
+change cache policy. The existing proxy comments still describe an older 15-system
+registry; runtime registry size is currently 52 and policy constants are unchanged.
+
+### GBFS timestamp acceptance
+
+Enable Bike Share near a registered city and inspect its source/status tooltip.
+Compare information/status operator feed update claims with local acceptance.
+An information cache hit must not advance either time; a normal status refresh may
+advance acceptance while an unchanged last_updated remains unchanged. Unknown
+operator time is a valid disclosed outcome, not an implicit receipt-time fallback.
+Use fixtures for malformed, missing, cancelled and failing documents. This does
+not replace native browser/live provider acceptance.

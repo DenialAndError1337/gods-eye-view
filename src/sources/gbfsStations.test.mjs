@@ -197,3 +197,40 @@ test('normalizing a localized name leaves the feed document unchanged', () => {
   parseStationInformation(payload);
   assert.deepEqual(payload, original);
 });
+
+test('feed update time accepts seconds and explicit-zone RFC3339 without inventing receipt time', async () => {
+  const { parseGbfsUpdatedAt } = await import('./gbfsStations.js');
+  const at = Date.parse('2026-10-16T19:00:00Z');
+  assert.equal(parseGbfsUpdatedAt(at / 1000), at);
+  assert.equal(parseGbfsUpdatedAt('2026-10-16T21:00:00+02:00'), at);
+  assert.equal(parseGbfsUpdatedAt('2026-10-16t19:00:00.123z'), at + 123);
+  assert.equal(
+    parseGbfsUpdatedAt('2024-02-29T00:00:00Z'),
+    Date.parse('2024-02-29T00:00:00Z'),
+  );
+  for (const value of [
+    undefined,
+    null,
+    true,
+    {},
+    [],
+    0,
+    -1,
+    1.5,
+    NaN,
+    Infinity,
+    at,
+    String(at / 1000),
+    '2026-10-16',
+    '2026-10-16T19:00:00',
+    '2026-02-30T00:00:00Z',
+    '2025-02-29T00:00:00Z',
+    '2026-13-01T00:00:00Z',
+    '2026-10-16T24:00:00Z',
+    '2026-10-16T19:00:00+24:00',
+    '2026-10-16T19:00:00+02:60',
+    '2026-10-16T19:00:60Z',
+    'x'.repeat(100),
+  ])
+    assert.equal(parseGbfsUpdatedAt(value), null, String(value));
+});

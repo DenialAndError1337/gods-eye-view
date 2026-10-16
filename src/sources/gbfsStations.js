@@ -134,3 +134,44 @@ export function parseStationStatus(payload) {
 
   return statusMap;
 }
+
+/**
+ * Read a feed's reported last_updated as epoch milliseconds. Legacy GBFS uses
+ * integer Unix seconds; v3 uses RFC3339. No receipt-time fallback or freshness
+ * inference. Unsupported leap seconds and malformed dates remain unknown.
+ */
+export function parseGbfsUpdatedAt(value) {
+  const maxMs = 253402300799999; // last millisecond of year 9999
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) &&
+      value > 0 &&
+      value <= Math.floor(maxMs / 1000)
+      ? value * 1000
+      : null;
+  }
+  if (typeof value !== 'string' || value.length > 64) return null;
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|([+-])(\d{2}):(\d{2}))$/.exec(
+      value,
+    );
+  if (!match) return null;
+  const [, y, m, d, h, min, s, , offsetH, offsetM] = match;
+  const year = Number(y),
+    month = Number(m),
+    day = Number(d);
+  if (
+    year < 1970 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > new Date(Date.UTC(year, month, 0)).getUTCDate() ||
+    Number(h) > 23 ||
+    Number(min) > 59 ||
+    Number(s) > 59 ||
+    Number(offsetH || 0) > 23 ||
+    Number(offsetM || 0) > 59
+  )
+    return null;
+  const at = Date.parse(value.toUpperCase());
+  return Number.isFinite(at) && at > 0 && at <= maxMs ? at : null;
+}

@@ -19,7 +19,7 @@ Implemented does not mean accepted on the user's laptop.
       including failures, blocked checks and the tested commit.
 - [x] Run the full automated suite on a host that supports Node memory measurement;
       retain the existing allocation thresholds.
-- [ ] Run a fresh full validation for the aircraft-health increment on the laptop;
+- [ ] Run a fresh full validation for the latest cumulative increment on the laptop;
       preserve the preceding all-green report as evidence for its own commit.
 - [ ] Complete the browser fixture gate on a host where Chromium starts.
 - [ ] Complete a 30–60 minute session with the intended layers enabled.
@@ -29,7 +29,7 @@ User reported full automated validation PASS on 2026-10-16 at 18:23 Europe/Bruss
 including both allocation probes, after npm ci installed the missing Atom parser.
 Browser/live/GPU/long-session acceptance remains pending. The user authorized
 parallel feature work while performing those manual checks.
-The current saved-view increment's development-host ordinary run passed: 7,168 tests
+The current GBFS timestamp increment's development-host ordinary run passed: 7,172 tests
 passed, one skipped, zero failed. This also exercises the preceding aircraft, AIS and
 validator changes together. Allocation measurements and browser/live acceptance
 for the new cumulative source still require the user's host. Earlier failed
@@ -60,8 +60,11 @@ These are candidates, rather than promises that each will ship.
 - [x] Bike-share per-city information/status request history, copied stats/snapshots,
       bounded source tooltip and explicit local-acceptance timestamp meaning.
       Cancelled uncooperative responses cannot overwrite caches or loading state.
-- [ ] Extend telemetry inventory to remaining layer families; assess explicit GBFS
-      operator publication timestamps and server-cache provenance separately.
+- [x] GBFS reported feed-update timestamps: retain valid numeric/RFC3339
+      last_updated separately from local acceptance and station last_reported.
+      Assess proxy/HTTP cache evidence without inventing upstream acquisition time.
+- [ ] Extend telemetry inventory to remaining layer families; assess station-level
+      reporting timestamps and explicit upstream acquisition evidence separately.
 - [ ] Optional configured-feed editing in the browser: first decide how local
       configuration is persisted and validated. Server-side HTTPS/DNS protections
       must continue to apply.
