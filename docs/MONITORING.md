@@ -99,3 +99,16 @@ remain separate visual acceptance checks. See `TODO.md` for the recorded run sta
 No new providers, API keys, alerts, archive, risk scoring or public deployment are
 included. The satellite stale-cache propagation finding from Priority 0 remains
 outside this milestone.
+
+## Related reports and provider preference
+
+Reports with matching normalized URLs, or long matching headlines with known
+timestamps inside 24 hours, receive a possible-related-report label. Reporting
+counts include heuristic groups without hiding the individual rows. Select a
+report to inspect its link provenance and open the other matching source links.
+Groups reflect the currently loaded, filtered cohort; they are not confirmed
+incidents or independent corroboration. See `NEWS-SOURCES.md` for exact limits.
+
+Use **Remember provider on this device** to opt into remembering only the existing
+provider selector. It does not persist search phrases, regions or result data, and
+it never triggers acquisition automatically. Uncheck it to remove the preference.

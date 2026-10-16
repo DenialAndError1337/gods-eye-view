@@ -4,7 +4,7 @@ import { railFixture } from './railTestFixture.mjs';
 import { createMonitoringPanel } from './monitoringPanel.js';
 
 /** Extend the existing instrumented rail DOM only with the data selectors used here. */
-function harness() {
+function harness({ providerStorage = null, newsArticles = null } = {}) {
   const f = railFixture();
   const original = f.document.createElement;
   f.document.createElement = (tag) => {
@@ -83,6 +83,7 @@ function harness() {
       bounds: { west: 170, east: -170, south: 10, north: 30 },
     }),
     enableEarthquakes: async () => {},
+    providerStorage,
     newsService: {
       async searchNews(query) {
         searches.push(query);
@@ -110,7 +111,7 @@ function harness() {
           newsSource: 'Google News RSS',
           retrievedAt: new Date().toISOString(),
           newsQuery: 'Test region',
-          articles: [
+          articles: newsArticles || [
             {
               title: '<script>Unsafe-looking headline is text</script>',
               domain: 'Publisher',
@@ -286,5 +287,142 @@ test('explicit topic search and loaded keyword/publisher filtering use one share
     assert.equal(h.searches.length, 1, 'loaded filters do not fetch');
   } finally {
     h.controller.destroy();
+  }
+});
+
+test('related-report details retain every source link and recompute after publisher filtering', async () => {
+  const title =
+    'International negotiators agree to continue diplomacy after a regional security summit';
+  const h = harness({
+    newsArticles: [
+      {
+        title: title + ' - First',
+        domain: 'First',
+        url: 'https://news.google.com/rss/articles/first',
+        publishedAt: new Date().toISOString(),
+      },
+      {
+        title: title + ' - Second',
+        domain: 'Second',
+        url: 'https://news.google.com/rss/articles/second',
+        publishedAt: new Date().toISOString(),
+      },
+    ],
+  });
+  try {
+    h.button('MONITOR').click();
+    h.button('News at map center').click();
+    await new Promise((resolve) => setImmediate(resolve));
+    h.filter('category', 'report');
+    assert.equal(h.rows().length, 2);
+    h.rows()[0].children[0].click();
+    assert.ok(
+      h.find(
+        (n) =>
+          n.dataset.lineId &&
+          /Possible shared reporting: 2/.test(n.textContent),
+      ),
+    );
+    assert.ok(
+      h.find(
+        (n) =>
+          n.dataset.lineId &&
+          /Canonical publisher URL has not been verified/.test(n.textContent),
+      ),
+    );
+    const related = h.find(
+      (n) => n.tagName === 'A' && n.textContent.startsWith('Related report'),
+    );
+    assert.ok(related);
+    assert.match(related.href, /^https:\/\/news.google.com\//);
+    assert.match(related.rel, /noopener/);
+    assert.deepEqual(h.focused, []);
+    h.filter('publisher', 'First');
+    assert.equal(h.rows().length, 1);
+    h.rows()[0].children[0].click();
+    assert.equal(
+      h.find(
+        (n) => n.tagName === 'A' && n.textContent.startsWith('Related report'),
+      ),
+      null,
+    );
+    assert.equal(h.requests, 1, 'grouping and filtering never acquire');
+  } finally {
+    h.controller.destroy();
+  }
+});
+
+test('provider preference is opt-in, validated, cleared, and never acquires news', () => {
+  const entries = new Map();
+  const writes = [];
+  const storage = {
+    getItem: (key) => entries.get(key),
+    setItem: (key, value) => {
+      entries.set(key, value);
+      writes.push(value);
+    },
+    removeItem: (key) => entries.delete(key),
+  };
+  const h = harness({ providerStorage: storage });
+  try {
+    const provider = h.find((n) => n.dataset.newsQuery === 'provider');
+    const remember = h.find((n) => n.dataset.rememberProvider);
+    provider.value = 'gdelt';
+    provider.dispatchEvent(new Event('change'));
+    assert.deepEqual(writes, []);
+    remember.checked = true;
+    remember.dispatchEvent(new Event('change'));
+    assert.deepEqual(writes, ['gdelt']);
+    assert.equal(h.requests, 0);
+  } finally {
+    h.controller.destroy();
+  }
+  const next = harness({ providerStorage: storage });
+  try {
+    assert.equal(
+      next.find((n) => n.dataset.newsQuery === 'provider').value,
+      'gdelt',
+    );
+    const remember = next.find((n) => n.dataset.rememberProvider);
+    assert.equal(remember.checked, true);
+    remember.checked = false;
+    remember.dispatchEvent(new Event('change'));
+    assert.equal(entries.size, 0);
+  } finally {
+    next.controller.destroy();
+  }
+  entries.set('gev.monitoring.news-provider.v1', 'https://untrusted.example');
+  const invalid = harness({ providerStorage: storage });
+  try {
+    assert.equal(
+      invalid.find((n) => n.dataset.newsQuery === 'provider').value,
+      'auto',
+    );
+  } finally {
+    invalid.controller.destroy();
+  }
+  const blocked = harness({
+    providerStorage: {
+      getItem() {
+        throw Error('blocked');
+      },
+      setItem() {
+        throw Error('blocked');
+      },
+    },
+  });
+  try {
+    const remember = blocked.find((n) => n.dataset.rememberProvider);
+    remember.checked = true;
+    remember.dispatchEvent(new Event('change'));
+    assert.equal(remember.checked, false);
+    assert.ok(
+      blocked.find(
+        (n) => n.textContent === ' Could not save preference on this device.',
+      ),
+    );
+    assert.equal(blocked.requests, 0);
+  } finally {
+    blocked.controller.destroy();
   }
 });

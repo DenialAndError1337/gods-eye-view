@@ -29,6 +29,13 @@ export function mountMonitoring({
     document,
     anchor,
     newsService: regional,
+    providerStorage: (() => {
+      try {
+        return globalThis.localStorage;
+      } catch {
+        return null;
+      }
+    })(),
     readEarthquakes() {
       const row = dataManager.getAll().find((r) => r.id === 'earthquakes');
       const snapshot = layerSnapshot(row);

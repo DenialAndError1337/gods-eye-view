@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { earthquakeEvent, newsEvents, eventTime } from './events.js';
+import {
+  earthquakeEvent,
+  newsEvents,
+  eventTime,
+  reportLinkKey,
+  groupNewsReports,
+} from './events.js';
 import {
   createMonitoringStore,
   defaultFilters,
@@ -253,25 +259,51 @@ test('topic query completion cannot replace a newer region request and partial p
   client.destroy();
 });
 
-
 test('news health distinguishes request time, accepted fallback age and cooldown without extra requests', async () => {
   let now = NOW;
-  let payload = { ...report(), retrievedAt: new Date(NOW - 3600000).toISOString(), status: 'stale' };
+  let payload = {
+    ...report(),
+    retrievedAt: new Date(NOW - 3600000).toISOString(),
+    status: 'stale',
+  };
   let calls = 0;
   let latest;
-  const client = createMonitoringNews({ now: () => now, publish: state => { latest = state; }, service: { async getBrief() { calls++; if (payload instanceof Error) throw payload; return payload; } } });
+  const client = createMonitoringNews({
+    now: () => now,
+    publish: (state) => {
+      latest = state;
+    },
+    service: {
+      async getBrief() {
+        calls++;
+        if (payload instanceof Error) throw payload;
+        return payload;
+      },
+    },
+  });
   await client.load({ lat: 1, lon: 1 });
   assert.equal(latest.lastAttempt, NOW);
   assert.equal(latest.lastAcceptedAt, NOW);
   assert.equal(latest.lastOutcome, 'stale');
-  assert.equal(latest.lastSuccess, payload.retrievedAt, 'fallback retains source acquisition age');
+  assert.equal(
+    latest.lastSuccess,
+    payload.retrievedAt,
+    'fallback retains source acquisition age',
+  );
   assert.equal(latest.retryReason, 'request spacing');
   now += 1000;
   await client.load({ lat: 1, lon: 1 });
   assert.equal(calls, 1);
-  assert.equal(latest.lastAttempt, NOW, 'cooldown is not an acquisition attempt');
+  assert.equal(
+    latest.lastAttempt,
+    NOW,
+    'cooldown is not an acquisition attempt',
+  );
   now += 6000;
-  payload = Object.assign(new Error('fixture'), { status: 429, retryAfterMs: 60000 });
+  payload = Object.assign(new Error('fixture'), {
+    status: 429,
+    retryAfterMs: 60000,
+  });
   await client.load({ lat: 1, lon: 1 });
   assert.equal(latest.lastAttempt, now);
   assert.equal(latest.lastAcceptedAt, NOW);
@@ -279,4 +311,121 @@ test('news health distinguishes request time, accepted fallback age and cooldown
   assert.equal(latest.retryReason, 'rate limit');
   assert.equal(latest.retryAt, now + 60000);
   client.destroy();
+});
+
+test('link provenance stays explicit and grouping keys preserve material URL parameters', () => {
+  assert.equal(
+    reportLinkKey(
+      'https://example.com/a?edition=en&utm_source=rss&fbclid=x#section',
+    ),
+    'https://example.com/a?edition=en',
+  );
+  assert.notEqual(
+    reportLinkKey('https://example.com/a?id=1'),
+    reportLinkKey('https://example.com/a?id=2'),
+  );
+  assert.equal(reportLinkKey('https://user:password@example.com/a'), null);
+  assert.equal(
+    newsEvents(report('https://user:password@example.com/a')).length,
+    0,
+  );
+  const indexed = {
+    ...report('https://news.google.com/rss/articles/opaque'),
+    newsSource: 'GDELT',
+  };
+  assert.equal(newsEvents(indexed)[0].originalUrl, null);
+  assert.equal(newsEvents(indexed)[0].linkKind, 'aggregator');
+  indexed.articles[0].url =
+    'https://publisher.example/article?utm_source=gdelt';
+  const [row] = newsEvents(indexed);
+  assert.equal(row.linkKind, 'provider-reported');
+  assert.equal(row.linkHost, 'publisher.example');
+  assert.equal(
+    row.sourceUrl,
+    indexed.articles[0].url,
+    'opening preserves provider URL',
+  );
+});
+
+test('report grouping retains every row and uses exact URLs or long matching timed headlines', () => {
+  const title =
+    'Diplomats announce further negotiations following international security summit';
+  const make = (id, url, timeMs = NOW, headline = title) => ({
+    id,
+    sourceUrl: url,
+    title: headline,
+    timeMs,
+    category: 'report',
+    source: 'Google News RSS',
+    publisher: id,
+  });
+  const rows = [
+    make('a', 'https://a.example/story?utm_source=rss', NOW, title + ' - a'),
+    make('b', 'https://b.example/story', NOW + 1000, title + ' - b'),
+    make(
+      'c',
+      'https://a.example/story?utm_source=social',
+      null,
+      'A changed article headline',
+    ),
+    make('d', 'https://d.example/story', NOW + 2 * 86400000),
+    make('e', 'https://e.example/story', null),
+    { id: 'quake', category: 'earthquake', title },
+  ];
+  const groups = groupNewsReports(rows);
+  assert.equal(groups.flatMap((group) => group.members).length, 5);
+  const sameLink = groups.find((group) =>
+    group.members.some((row) => row.id === 'c'),
+  );
+  assert.deepEqual(
+    sameLink.members.map((row) => row.id),
+    ['a', 'c'],
+  );
+  assert.match(sameLink.reason, /normalized URL/);
+  // Differing headlines in the URL group prevent transitive headline grouping.
+  assert.equal(groups.length, 4);
+  const headlines = groupNewsReports(rows.filter((row) => row.id !== 'c'));
+  assert.deepEqual(
+    headlines[0].members.map((row) => row.id),
+    ['a', 'b'],
+  );
+  assert.match(headlines[0].reason, /headline within 24 hours/);
+  assert.equal(
+    groupNewsReports([
+      make('x', 'https://x.example/', NOW, 'Brief title'),
+      make('y', 'https://y.example/', NOW, 'Brief title'),
+    ]).length,
+    2,
+  );
+  assert.deepEqual(
+    groupNewsReports([...rows].reverse()),
+    groups,
+    'input order does not change grouping',
+  );
+});
+
+test('headline groups never span more than 24 hours or merge distinct numbers and negation', () => {
+  const title =
+    'Government confirms agreement after negotiations with international representatives';
+  const rows = [0, 23, 46].map((hour, index) => ({
+    id: String(index),
+    category: 'report',
+    title,
+    sourceUrl: `https://example.com/${index}`,
+    timeMs: NOW + hour * 3600000,
+  }));
+  const groups = groupNewsReports(rows);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].members.length, 2);
+  const variants = [
+    title,
+    title.replace('confirms', 'does not confirm'),
+    title + ' 2',
+  ].map((headline, index) => ({
+    ...rows[0],
+    id: String(index),
+    title: headline,
+    sourceUrl: `https://other.example/${index}`,
+  }));
+  assert.equal(groupNewsReports(variants).length, 3);
 });

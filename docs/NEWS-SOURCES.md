@@ -77,3 +77,52 @@ The focus probe and all 13 overlay workloads failed at the host's
 `uv_resident_set_memory` measurement. Native GPU, pointer picking, long-duration
 soak behavior and visual layout still require a compatible host. Current test
 and gate results are recorded in [TODO.md](../TODO.md).
+
+## Link provenance and possible shared reporting (2026-10-16)
+
+Monitoring details now show the link host and whether the link is an aggregator
+link or a provider-reported article link. Google News RSS links remain unresolved;
+a Google News hostname also remains an aggregator link when returned by GDELT.
+A GDELT article URL is provider-reported, not a verified canonical publisher URL.
+No redirect chain or publisher page is fetched by this increment. URLs containing
+embedded credentials are refused. The original safe link is retained for opening;
+normalization is only a grouping comparison.
+
+The monitoring list shows heuristic reporting-group counts and related reports.
+Every report remains a separate visible/selectable row with its own timestamp,
+provider/publisher labels and original source link. Details link to the other
+matching reports in the currently filtered cohort. A match is not evidence of
+independent confirmation, a distinct incident, or proven syndication.
+
+Grouping uses:
+
+- Exact normalized URLs: fragments and known tracking parameters (`utm_*`,
+  `fbclid`, `gclid`, `msclkid`, `igshid`) are ignored, query keys are sorted, and
+  material query parameters and paths are retained. Opening uses the supplied
+  URL, including its original parameters.
+- Long matching headlines: Unicode normalization, case/spacing/punctuation
+  normalization and an exact Google RSS publisher suffix removal. At least 40
+  normalized characters and known timestamps within a 24-hour span are required.
+  Every group member must meet the same headline/time rule; a chain of matches
+  cannot extend the group beyond 24 hours. Numbers and negation remain in the key.
+- URL matches with changed headlines remain one URL group, but prevent unrelated
+  headline matches from being joined transitively.
+
+Short headlines, unknown timestamps and similar-but-different headlines are not
+headline-grouped. Syndication with edited headlines or different URLs may be
+missed; unrelated reports with identical headlines may match. Groups are transient
+and recomputed after filtering. They do not assign locations or acquire data.
+
+## Provider preference
+
+The existing Auto / Google RSS / GDELT selector can be remembered on this device
+by explicitly checking **Remember provider on this device**. Only the provider
+enum is stored. Phrases, region text, results and filters are not saved by this
+preference. Unchecking removes the preference. Invalid values are ignored and
+unavailable storage is handled without breaking monitoring. Loading a preference
+never starts a search; searches remain explicit. This is a configuration option
+for the existing providers, not support for arbitrary RSS URLs or extra feeds.
+
+Remaining work: evidence-backed canonical publisher resolution, configurable
+source inventories and broader syndication analysis. Provider restrictions and
+attribution still apply. No new live-provider availability claim is made here.

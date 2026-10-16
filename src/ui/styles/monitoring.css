@@ -181,7 +181,7 @@
   gap: 4px;
   font-size: 11px;
 }
-.monitoring-news-query :is(input, select),
+.monitoring-news-query :is(input:not([type='checkbox']), select),
 .monitoring-filters input[type='search'] {
   width: 100%;
   min-width: 0;
@@ -195,4 +195,15 @@
 }
 .monitoring-news-query > button {
   margin-top: 8px;
+}
+
+.monitoring-news-query .monitoring-remember-provider {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.monitoring-remember-provider input {
+  width: auto;
+  flex: 0 0 auto;
 }

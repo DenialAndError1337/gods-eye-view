@@ -1,7 +1,11 @@
 import { createRailCards } from './railCards.js';
 import { syncRowList } from './rowList.js';
 import { UiLifetime } from './uiLifetime.js';
-import { earthquakeEvent, formatEventTime } from '../monitoring/events.js';
+import {
+  earthquakeEvent,
+  formatEventTime,
+  groupNewsReports,
+} from '../monitoring/events.js';
 import { createMonitoringStore, eventMatches } from '../monitoring/store.js';
 import { createMonitoringNews } from '../monitoring/news.js';
 import { NEWS_TOPICS } from '../monitoring/newsQuery.js';
@@ -19,6 +23,7 @@ export function createMonitoringPanel({
   readMapArea,
   newsService,
   enableEarthquakes,
+  providerStorage = null,
 }) {
   const lifetime = new UiLifetime();
   const store = createMonitoringStore();
@@ -92,6 +97,51 @@ export function createMonitoringPanel({
     ['google', 'Google News RSS'],
     ['gdelt', 'GDELT'],
   ]);
+  const rememberWrap = make(
+    'label',
+    queryFields,
+    'Remember provider on this device',
+    'monitoring-remember-provider',
+  );
+  const rememberProvider = make('input', rememberWrap);
+  rememberProvider.type = 'checkbox';
+  rememberProvider.checked = false;
+  rememberProvider.dataset.rememberProvider = 'true';
+  const preferenceKey = 'gev.monitoring.news-provider.v1';
+  try {
+    const saved = providerStorage?.getItem(preferenceKey);
+    if (['auto', 'google', 'gdelt'].includes(saved)) {
+      queryProvider.value = saved;
+      rememberProvider.checked = true;
+    }
+  } catch {
+    /* unavailable storage leaves the default provider unchanged */
+  }
+  rememberProvider.disabled = !providerStorage;
+  const preferenceStatus = make(
+    'span',
+    rememberWrap,
+    providerStorage ? '' : ' (unavailable)',
+    'monitoring-help',
+  );
+  preferenceStatus.setAttribute('role', 'status');
+  const saveProvider = () => {
+    try {
+      if (rememberProvider.checked) {
+        if (!['auto', 'google', 'gdelt'].includes(queryProvider.value)) return;
+        providerStorage?.setItem(preferenceKey, queryProvider.value);
+      } else providerStorage?.removeItem(preferenceKey);
+      preferenceStatus.textContent = '';
+    } catch {
+      rememberProvider.checked = false;
+      preferenceStatus.textContent =
+        ' Could not save preference on this device.';
+    }
+  };
+  lifetime.listen(rememberProvider, 'change', saveProvider);
+  lifetime.listen(queryProvider, 'change', () => {
+    if (rememberProvider.checked) saveProvider();
+  });
   const queryHours = querySelect('Search window', 'hours', [
     ['24', '24 hours'],
     ['48', '48 hours'],
@@ -372,14 +422,29 @@ export function createMonitoringPanel({
     ]
       .filter(Boolean)
       .join(' · ');
+    const reportingGroups = groupNewsReports(rows);
+    const relatedGroup =
+      selected?.category === 'report'
+        ? reportingGroups.find((group) =>
+            group.members.some((row) => row.id === selected.id),
+          )
+        : null;
+    const related = (relatedGroup?.members || []).filter(
+      (row) => row.id !== selected?.id,
+    );
+    const groupCounts = new Map(
+      reportingGroups.flatMap((group) =>
+        group.members.map((row) => [row.id, group.members.length]),
+      ),
+    );
     const shown = rows.slice(0, limit);
-    counts.textContent = `${view.all.length} loaded · ${rows.length} match · ${rows.filter((r) => !r.coordinates).length} unlocated · ${rows.filter((r) => r.timeMs == null).length} unknown time · showing ${shown.length}`;
+    counts.textContent = `${view.all.length} loaded · ${rows.length} match · ${rows.filter((r) => !r.coordinates).length} unlocated · ${rows.filter((r) => r.timeMs == null).length} unknown time · showing ${shown.length}${reportingGroups.length ? ` · ${reportingGroups.length} reporting groups (heuristic)` : ''}`;
     syncRowList(list, {
       ariaLabel: 'Events and reports, newest first; unknown times last',
       items: shown.map((row) => ({
         id: row.id,
         lead: row.category === 'earthquake' ? '◉' : '↗',
-        text: `${row.title}\n${formatEventTime(row)} · ${row.timeMeaning} · ${row.source}`,
+        text: `${row.title}\n${formatEventTime(row)} · ${row.timeMeaning} · ${row.source}${groupCounts.get(row.id) > 1 ? ` · ${groupCounts.get(row.id)} possibly related reports` : ''}`,
         active: row.id === view.selectedId,
       })),
     });
@@ -397,6 +462,12 @@ export function createMonitoringPanel({
             ? `Query context: ${selected.queryContext}`
             : '',
           selected.description || 'No description supplied.',
+          selected.category === 'report'
+            ? `Link: ${selected.linkKind === 'aggregator' ? 'aggregator or redirect link' : 'provider-reported article link'} · host ${selected.linkHost}. Canonical publisher URL has not been verified.`
+            : '',
+          related.length
+            ? `Possible shared reporting: ${related.length + 1} matching loaded reports; ${relatedGroup.reason}. This heuristic does not prove syndication, separate incidents or independent confirmation. All reports and links remain available.`
+            : '',
           selected.category === 'report'
             ? `News freshness: ${newsStatus}. Headline matches are reports, not verified incidents. Syndicated reports do not establish independent confirmation.`
             : `Feed: ${quakeState.feedState}. Epicenter/magnitude may be revised.`,
@@ -435,6 +506,11 @@ export function createMonitoringPanel({
                         },
                       ]
                     : []),
+                  ...related.map((row) => ({
+                    id: `related-${row.id}`,
+                    label: `Related report · ${row.publisher || row.source}: ${row.title}`,
+                    href: row.sourceUrl,
+                  })),
                   ...(selected.sourceUrl
                     ? [
                         {

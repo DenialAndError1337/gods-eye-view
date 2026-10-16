@@ -1,6 +1,6 @@
 # Monitoring milestones
 
-Latest work: see **Upstream reconciliation — pinned candidate** below.
+Latest work: see **News provenance and related reporting** below.
 
 ## Milestone 1 — implementation and verification snapshot
 
@@ -228,3 +228,37 @@ Per-provider telemetry for independent loops remains partial; bike-share failure
 recovery and response-size caps are now upstream capabilities. Work against this
 pinned integration, review upstream regularly, and update with tests rather than
 chasing every commit.
+
+## News provenance and related reporting (2026-10-16)
+
+Increment based on the reconciled customization tree
+`68a9380451f0ba0790320efa8a7f0f086593182f`, corresponding to the 45-file patch the
+user committed as `d068dcbd` on `gev/osint-dashboard`. Upstream stays pinned at
+`537e99dfa45a3f7b239ad6230a65be658b3ea29d`; no new upstream sync is included.
+
+| Work                                     | Status                        | Evidence                                                                                                                                                                                 |
+| ---------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Explicit link provenance                 | Pass                          | Safe provider URLs remain unchanged for opening; aggregator links stay unresolved, host is shown, credential-bearing URLs are refused                                                    |
+| Conservative report groups               | Pass                          | URL/headline tests preserve every record, material query parameters, exact timed headline matching, short/unknown-time exclusions, number/negation differences and input-order stability |
+| Group details and filter behavior        | Pass (controller)             | Related source links stay accessible; publisher filtering recomputes groups without requests or map navigation                                                                           |
+| Opt-in provider preference               | Pass                          | Validated provider-only storage, explicit opt-in/removal, invalid values, blocked storage and zero acquisition on preference changes                                                     |
+| Focused model/controller tests           | Pass                          | 18 passed, zero failures                                                                                                                                                                 |
+| Full ordinary suite and regression gates | Pass                          | 7,112 tests: 7,111 passed, 1 skipped, zero failures; 54.52 seconds. Build: 849 modules, 12.74 seconds. Format: 1,407 files; boundaries; 31 published tokens/zero new; diff check         |
+| Browser/GPU and live providers           | Needs follow-up               | No new browser, GPU or upstream-availability acceptance claimed                                                                                                                          |
+| Allocation measurements                  | Needs follow-up (environment) | Previous focus and 14 overlay probes fail on this host's memory measurement; not rerun for this UI/model-only increment                                                                  |
+
+No dependencies, backend acquisition changes, new provider registrations or
+automatic polling were added. Documentation: `docs/NEWS-SOURCES.md` and
+`docs/MONITORING.md`. Deliver as an incremental Git patch and overlay files for
+the existing dashboard branch, not another upstream replacement.
+
+### Remaining news backlog
+
+1. Evidence-backed canonical publisher URLs. Provider-reported links and opaque
+   Google RSS links are labelled; canonical resolution is not implemented.
+2. Configurable source inventory/RSS feeds. This increment only remembers the
+   existing provider selector when the user opts in.
+3. Broader syndication analysis. Current exact URL/headline groups are heuristics,
+   preserve all rows and cannot establish independent corroboration.
+4. Browser/pointer/narrow-layout/GPU/long-session acceptance and performance gates
+   on a compatible host. Independent-source telemetry remains partial as before.
