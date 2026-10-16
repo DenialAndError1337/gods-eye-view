@@ -109,6 +109,7 @@ export function createLifecycle({
     state.feed.transportStatus = null;
     state.feed.nextAttemptAt = null;
     state.feed.lastMessageAt = null;
+    state.feed.transportHealth = null;
     state.feed.rawRowCount = 0;
     state.feed.acceptedRowCount = 0;
     state.feed.sessionId = ++vesselState._aisSessionSequence;

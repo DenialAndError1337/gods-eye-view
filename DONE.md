@@ -22,6 +22,7 @@ wording. Its “next” sections are historical; current work is in [TODO.md](TO
 | GEV_VALIDATION_CHECKPOINT               | TODO/DONE split, preserved history and validation runbook/results                                | Documentation increment after Atom; no application code or dependencies changed                           |
 | GEV_VALIDATION_RUNNER_UPDATE            | Automated checks with local per-gate logs and reports                                            | Apply after the validation checkpoint; no new dependencies                                                |
 | GEV_AIRCRAFT_HEALTH_UPDATE              | Aircraft snapshot-request history, scoped telemetry inventory and recorded laptop automated pass | Apply after the validation runner update; manual acceptance still pending                                 |
+| GEV_AIS_TRANSPORT_HEALTH_UPDATE         | AIS watchdog event history from server to tooltip                                                | Apply after the aircraft-health update; no dependencies or retry policy changes                           |
 
 Pinned upstream: `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
 The user reported committing the reconciled customization as `d068dcbd` and
@@ -261,6 +262,41 @@ into a pass.
 Your active docs/VALIDATION-RESULTS.md template is excluded from this patch so
 ongoing manual notes are preserved; the reported automated evidence is recorded
 in this DONE file.
+
+## 12. AIS transport event history — 2026-10-16
+
+Added watchdog-owned last connection attempt, handshake, classified failure and
+failure retry class. History is captured at the existing commissioning/open/retry
+branches, not on HTTP polling. The existing valid-message time remains distinct
+from newest vessel-position time. Orphan events cannot change history; data
+recovery preserves past failure events. Dispose resets event history while the
+existing generation high-water mark is retained. Credential rotation does not
+erase past history or leak fingerprints.
+
+The local vessels endpoint, normalized source snapshot, owned ingestion, copied
+public stats and shared layer snapshot carry this optional envelope. Unknown or
+invalid timestamps remain null; failure classes and fields are whitelisted.
+Older/custom sources without metadata remain supported. The tooltip describes
+handshakes/messages as transport evidence, not proof of current positions, and
+uses the existing source retry deadline. No new socket, poll, retry timer,
+credential, provider account or dependency is introduced.
+
+Verification: 249 affected watchdog, adapter, real local transport, source,
+ownership, analyst, snapshot, UI and local-provider tests passed. The local
+HTTP/WebSocket fixture verifies the actual vessels endpoint exposes only the
+four intended history fields. The full ordinary suite also passed: 7,156 tests,
+7,155 passed, one skipped, zero failed; 95.41 seconds using the existing allocation
+partition and concurrency 8. This supplies a clean cumulative ordinary run after
+the preceding aircraft increment's test-clock/performance fixes; earlier failures
+remain historical.
+
+The final actual default runner passed 443 focused tests, production build
+(13.84 seconds; existing large-chunk warnings), adopted formatting (1,412 files),
+import/package boundaries, layer-token compatibility and whitespace checks.
+Patch application, resulting tree identity and local documentation links were
+verified. No full application npm ci was needed for this dependency-free update.
+Active manual validation notes remain untouched. Allocation probes and browser/
+live acceptance for this new cumulative source remain pending on the user's host.
 
 ## Updating this record
 

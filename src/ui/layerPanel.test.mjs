@@ -335,3 +335,26 @@ test('layer tooltip separates direct snapshot requests from manager history and 
   assert.match(title, /Source retry: 1970-01-01T00:00:30.000Z/);
   assert.doesNotMatch(title, /Manager update/);
 });
+
+test('AIS tooltip distinguishes connection events, valid messages and position time', async () => {
+  const { LayerPanel } = await import('./layerPanel.js');
+  const title = LayerPanel.prototype._buildHealthTitle({
+    stats: {
+      lastUpdate: 1000,
+      lastMessageAt: 5000,
+      retryAt: 30000,
+      transportHealth: {
+        lastAttempt: 2000,
+        lastOpen: 3000,
+        lastFailure: 4000,
+        lastFailureKind: 'auth',
+      },
+    },
+  });
+  assert.match(title, /last connection attempt 1970-01-01T00:00:02.000Z/);
+  assert.match(title, /last handshake 1970-01-01T00:00:03.000Z/);
+  assert.match(title, /last failure 1970-01-01T00:00:04.000Z \(auth\)/);
+  assert.match(title, /last valid AIS message 1970-01-01T00:00:05.000Z/);
+  assert.match(title, /does not establish current vessel positions/);
+  assert.match(title, /Source data timestamp: 1970-01-01T00:00:01.000Z/);
+});

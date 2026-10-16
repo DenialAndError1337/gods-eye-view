@@ -71,10 +71,26 @@ export function vesselSnapshot(
     transportStatus:
       typeof payload?.status === 'string' ? payload.status : null,
     lastMessageAt: payload?.lastMessageAt ?? null,
+    transportHealth: normalizeAisTransportHealth(payload?.transportHealth),
     nextAttemptAt: finite(payload?.nextAttemptAt),
     silentForMs: finite(payload?.silentForMs),
     reconnectAttempt: finite(payload?.reconnectAttempt),
     rawRowCount: rows.length,
+  };
+}
+
+/** Optional watchdog history; never substitute receipt time for missing events. */
+export function normalizeAisTransportHealth(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return {
+    lastAttempt: epoch(value.lastAttempt),
+    lastOpen: epoch(value.lastOpen),
+    lastFailure: epoch(value.lastFailure),
+    lastFailureKind: ['auth', 'rate-limit', 'transport'].includes(
+      value.lastFailureKind,
+    )
+      ? value.lastFailureKind
+      : null,
   };
 }
 

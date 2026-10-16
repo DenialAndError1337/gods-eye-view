@@ -417,6 +417,16 @@ test('AIS preview route ingests through the socket, returns tracks and disposes 
   assert.equal(data.status, 'live');
   assert.equal(data.rows[0].mmsi, '123456789');
   assert.equal(data.rows[0].heading, null);
+  assert.ok(Number.isFinite(data.transportHealth.lastAttempt));
+  assert.ok(Number.isFinite(data.transportHealth.lastOpen));
+  assert.equal(data.transportHealth.lastFailure, null);
+  assert.equal(data.transportHealth.lastFailureKind, null);
+  assert.deepEqual(Object.keys(data.transportHealth).sort(), [
+    'lastAttempt',
+    'lastFailure',
+    'lastFailureKind',
+    'lastOpen',
+  ]);
   const history = await request('/api/vessels', '/track?mmsi=123456789');
   assert.equal(JSON.parse(history.body).samples.length, 2);
   assert.equal(

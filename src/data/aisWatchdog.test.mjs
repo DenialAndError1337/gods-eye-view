@@ -830,6 +830,7 @@ test('snapshot exposes the honest fields the browser chip needs', () => {
     'silentForMs',
     'staleAfterMs',
     'status',
+    'transportHealth',
     'watchdog',
   ]);
   assert.equal(snap.staleAfterMs, AIS_WATCHDOG_DEFAULTS.staleMs);
@@ -875,4 +876,108 @@ test('recycleAfterMs can never be tuned below staleMs', () => {
   assert.deepEqual(watchdog.tick(), []);
   time.advance(31_000);
   assert.deepEqual(watchdog.tick().map((a) => a.type), ['terminate']);
+});
+
+test('transport event history separates commissioning, handshake, failure and data', () => {
+  const h = harness();
+  h.configure();
+  assert.deepEqual(h.snapshot().transportHealth, {
+    lastAttempt: null,
+    lastOpen: null,
+    lastFailure: null,
+    lastFailureKind: null,
+  });
+  h.tick();
+  const attempt = h.time.wall;
+  h.advance(100);
+  h.open(1);
+  assert.equal(h.snapshot().transportHealth.lastAttempt, attempt);
+  assert.equal(h.snapshot().transportHealth.lastOpen, h.time.wall);
+  assert.equal(h.snapshot().lastMessageAt, null, 'handshake is not data');
+  h.advance(100);
+  h.fail(1, { kind: 'rate-limit', retryAfterMs: 60000 });
+  const failed = h.snapshot();
+  assert.equal(failed.transportHealth.lastFailure, h.time.wall);
+  assert.equal(failed.transportHealth.lastFailureKind, 'rate-limit');
+  const history = { ...failed.transportHealth };
+  h.tick();
+  assert.deepEqual(
+    h.snapshot().transportHealth,
+    history,
+    'waiting is not another attempt',
+  );
+  h.advance(failed.nextAttemptAt - h.time.wall);
+  h.tick();
+  h.open(2);
+  h.message(2);
+  assert.equal(h.snapshot().status, 'live');
+  assert.equal(h.snapshot().lastMessageAt, h.time.wall);
+  assert.equal(
+    h.snapshot().transportHealth.lastFailure,
+    history.lastFailure,
+    'recovery keeps history',
+  );
+});
+
+test('orphan events and configuration checks cannot fabricate transport attempts', () => {
+  const time = fakeClock();
+  const w = createAisWatchdog({ clock: time.clock });
+  w.configure({ hasKey: false });
+  w.tick();
+  assert.equal(w.snapshot().transportHealth.lastAttempt, null);
+  w.configure(LIVE_ENV);
+  w.tick();
+  w.onFailure(1, { kind: 'auth' });
+  const before = w.snapshot().transportHealth;
+  time.advance(100);
+  w.onOpen(1);
+  w.onClose(1);
+  w.onFailure(1, { kind: 'transport' });
+  w.onMessage(1);
+  assert.deepEqual(w.snapshot().transportHealth, before);
+  before.lastAttempt = 0;
+  assert.notEqual(
+    w.snapshot().transportHealth.lastAttempt,
+    0,
+    'snapshots are copied',
+  );
+  w.dispose();
+  assert.deepEqual(w.snapshot().transportHealth, {
+    lastAttempt: null,
+    lastOpen: null,
+    lastFailure: null,
+    lastFailureKind: null,
+  });
+});
+
+test('silent recycle records a transport failure and retains monotonic retry timing', () => {
+  const h = harness();
+  h.configure();
+  h.tick();
+  h.advance(AIS_WATCHDOG_DEFAULTS.recycleAfterMs);
+  h.tick();
+  assert.equal(h.snapshot().transportHealth.lastFailureKind, 'transport');
+  const retry = h.snapshot().nextAttemptAt - h.time.wall;
+  h.time.rollbackWall(100000);
+  assert.equal(h.snapshot().nextAttemptAt - h.time.wall, retry);
+});
+
+test('auth probe history keeps its retry classification until credential recovery', () => {
+  const time = fakeClock();
+  const w = createAisWatchdog({ clock: time.clock });
+  w.configure(LIVE_ENV);
+  w.tick();
+  w.onFailure(1, { kind: 'auth' });
+  time.advance(AIS_WATCHDOG_DEFAULTS.authProbeMs);
+  w.tick();
+  w.onFailure(2, { kind: 'transport' });
+  assert.equal(w.snapshot().transportHealth.lastFailureKind, 'auth');
+  const failureTime = w.snapshot().transportHealth.lastFailure;
+  w.configure({ ...LIVE_ENV, keyFingerprint: 'key-b' });
+  w.tick();
+  w.onOpen(3);
+  w.onMessage(3);
+  assert.equal(w.snapshot().status, 'live');
+  assert.equal(w.snapshot().transportHealth.lastFailure, failureTime);
+  assert.equal(w.snapshot().transportHealth.lastFailureKind, 'auth');
 });

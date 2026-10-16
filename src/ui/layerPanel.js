@@ -539,7 +539,8 @@ export class LayerPanel {
     const stats = layer.stats || {};
     const health = stats.refreshHealth;
     const acquisition = stats.acquisitionHealth;
-    if (!health && !acquisition) return '';
+    const transport = stats.transportHealth;
+    if (!health && !acquisition && !transport) return '';
     const retry =
       Number.isFinite(stats.retryAt) && stats.retryAt > 0
         ? new Date(stats.retryAt).toISOString()
@@ -554,7 +555,10 @@ export class LayerPanel {
     const source = acquisition
       ? `Snapshot request: ${acquisition.outcome}; last attempt ${stamp(acquisition.lastAttempt)}; last completion ${stamp(acquisition.lastCompletion)}; last accepted ${stamp(acquisition.lastAccepted)}; last clean acceptance ${stamp(acquisition.lastSuccess)}. Acceptance does not establish a new upstream acquisition. `
       : '';
-    return `${manager}${source}Source data timestamp: ${stamp(stats.lastUpdate)}. Source retry: ${retry}.`;
+    const ais = transport
+      ? `AIS transport: last connection attempt ${stamp(transport.lastAttempt)}; last handshake ${stamp(transport.lastOpen)}; last failure ${stamp(transport.lastFailure)} (${transport.lastFailureKind || 'unknown'}); last valid AIS message ${stamp(stats.lastMessageAt)}. Transport liveness does not establish current vessel positions. `
+      : '';
+    return `${manager}${source}${ais}Source data timestamp: ${stamp(stats.lastUpdate)}. Source retry: ${retry}.`;
   }
 
   _buildMetaText(layer) {

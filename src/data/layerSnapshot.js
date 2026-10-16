@@ -165,6 +165,12 @@ export function layerSnapshot(layer = {}, { now = Date.now() } = {}) {
     ...(stats.acquisitionHealth
       ? { acquisitionHealth: { ...stats.acquisitionHealth } }
       : {}),
+    ...(stats.transportHealth
+      ? {
+          transportHealth: { ...stats.transportHealth },
+          lastMessageAt: stats.lastMessageAt ?? null,
+        }
+      : {}),
   };
 }
 

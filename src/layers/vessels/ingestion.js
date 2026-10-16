@@ -55,6 +55,7 @@ export function createIngestion({
         reason: snapshot.reason,
         status: snapshot.transportStatus,
         lastMessageAt: snapshot.lastMessageAt,
+        transportHealth: snapshot.transportHealth,
         nextAttemptAt: snapshot.nextAttemptAt,
         refreshing: snapshot.stale,
         newestPositionAt:
@@ -105,6 +106,9 @@ export function createIngestion({
     feed.transportStatus = snapshot.transportStatus;
     feed.nextAttemptAt = Number(payload?.nextAttemptAt) || null;
     feed.lastMessageAt = snapshot.lastMessageAt;
+    feed.transportHealth = payload?.transportHealth
+      ? { ...payload.transportHealth }
+      : null;
     feed.rawRowCount = snapshot.rawRowCount;
     feed.acceptedRowCount = snapshot.acceptedRowCount;
     feed.partial = payload?.complete === false;
@@ -216,6 +220,7 @@ export function createVesselFeed() {
     transportStatus: null,
     nextAttemptAt: null,
     lastMessageAt: null,
+    transportHealth: null,
     rawRowCount: 0,
     acceptedRowCount: 0,
     sessionId: 0,

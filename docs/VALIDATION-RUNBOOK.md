@@ -237,3 +237,22 @@ response must not be described as newly acquired upstream data. Check normal
 tracking and changing military filtering while aircraft is active. If an actual
 retry interval occurs, skipped calls should not advance snapshot attempt time.
 Use fixtures for stale/failure/cancellation cases that do not occur live.
+
+## AIS transport increment addendum
+
+GEV_AIS_TRANSPORT_HEALTH_UPDATE follows the aircraft-health update. Restart the
+dev server after applying it and rerun `npm run validate:monitoring` (or the full
+mode on your calibrated host). The focused command now includes AIS watchdog,
+transport, source and endpoint regressions.
+
+With your existing AIS setup, inspect the vessel source/status tooltip: connection
+attempt and handshake are server transport events; valid AIS message time is not
+necessarily a usable position time. Original position data age must be preserved.
+Historical failure time/class may remain visible after recovery; read current
+status separately. A browser reload is not a server watchdog restart.
+
+Missing AIS credentials or unavailable live service can block live acceptance.
+Do not change credentials or provoke upstream failures solely to test history;
+use the local socket/middleware fixtures for deterministic failure and recovery.
+See SOURCE-HEALTH.md for field meanings and lifetime. This increment does not
+alter the active results template; keep your manual notes tied to tested commits.

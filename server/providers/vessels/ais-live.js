@@ -130,6 +130,7 @@ export function aisLiveProxy() {
             refreshing: feed.status !== 'live',
             newestPositionAt: newestAisPositionAt(rows),
             lastMessageAt: feed.lastMessageAt,
+            transportHealth: feed.transportHealth ?? null,
             // Honest-failure metadata: how long the feed has been quiet, which
             // recovery attempt we are on, and when the next one lands.
             silentForMs: feed.silentForMs,

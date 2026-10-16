@@ -405,3 +405,31 @@ test('empty coverage cannot hide stale, incomplete or rejected source data', asy
     assert.ok(layer.getStats().error, JSON.stringify(patch));
   }
 });
+
+test('vessel ingestion and stats copy transport history without restamping position time', async () => {
+  const { vesselSnapshot } = await import('../../sources/live/vessels.js');
+  const history = {
+    lastAttempt: 10000,
+    lastOpen: 11000,
+    lastFailure: 9000,
+    lastFailureKind: 'transport',
+  };
+  const snapshot = vesselSnapshot({
+    rows: [],
+    status: 'live',
+    transportHealth: history,
+    lastMessageAt: 12000,
+    nextAttemptAt: 30000,
+  });
+  const { layer } = setup({ getSnapshot: async () => snapshot });
+  await layer.update();
+  const stats = layer.getStats();
+  assert.deepEqual(stats.transportHealth, history);
+  assert.equal(stats.lastUpdate, null);
+  assert.equal(stats.lastMessageAt, 12000);
+  assert.equal(stats.retryAt, 30000);
+  stats.transportHealth.lastOpen = 1;
+  snapshot.transportHealth.lastAttempt = 1;
+  assert.equal(layer.getStats().transportHealth.lastOpen, 11000);
+  assert.equal(layer.getStats().transportHealth.lastAttempt, 10000);
+});

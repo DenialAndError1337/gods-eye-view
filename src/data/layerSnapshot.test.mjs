@@ -330,3 +330,18 @@ test('snapshot copies source request history without treating acceptance as data
   snapshot.acquisitionHealth.outcome = 'changed';
   assert.equal(health.outcome, 'accepted');
 });
+
+test('AIS snapshot copies transport history without turning handshakes into data timestamps', () => {
+  const transportHealth = { lastAttempt: 9000, lastOpen: 10000 };
+  const snap = layerSnapshot(
+    {
+      enabled: true,
+      stats: { lastUpdate: 1000, lastMessageAt: 11000, transportHealth },
+    },
+    { now: 12000 },
+  );
+  assert.equal(snap.ageSec, 11);
+  assert.equal(snap.lastMessageAt, 11000);
+  snap.transportHealth.lastOpen = 0;
+  assert.equal(transportHealth.lastOpen, 10000);
+});

@@ -163,6 +163,15 @@ export function createAisWatchdog(options = {}) {
   let silenceSinceMono = 0;
   /** Last DATA message. 0 = never — a handshake does not count. */
   let lastMessageWall = 0;
+  let transportHealth = emptyTransportHealth();
+  function emptyTransportHealth() {
+    return {
+      lastAttempt: null,
+      lastOpen: null,
+      lastFailure: null,
+      lastFailureKind: null,
+    };
+  }
   /** Consecutive failed sessions since data last flowed. */
   let reconnectAttempt = 0;
   /** Monotonic deadline before which no new connect may be issued. */
@@ -197,6 +206,8 @@ export function createAisWatchdog(options = {}) {
     // auth-failed.
     const effective =
       status === 'auth-failed' && kind !== 'auth' ? 'auth' : kind;
+    transportHealth.lastFailure = clock.wall();
+    transportHealth.lastFailureKind = effective;
     reconnectAttempt += 1;
 
     if (effective === 'auth') {
@@ -341,6 +352,7 @@ export function createAisWatchdog(options = {}) {
     if (monoNow < nextAttemptMono) return [];
     generation += 1;
     owned = generation;
+    transportHealth.lastAttempt = clock.wall();
     // The silence budget starts when the socket is COMMISSIONED, not when it
     // opens: a handshake that completes late must not buy extra silence.
     silenceSinceMono = monoNow;
@@ -371,6 +383,7 @@ export function createAisWatchdog(options = {}) {
         { type: 'terminate', generation: eventGeneration, reason: 'orphan' },
       ];
     }
+    transportHealth.lastOpen = clock.wall();
     if (!QUIET_TERMINAL.has(status) && status !== 'stale')
       status = 'connecting';
     return [];
@@ -438,6 +451,7 @@ export function createAisWatchdog(options = {}) {
     nextAttemptMono = 0;
     silenceSinceMono = 0;
     lastMessageWall = 0;
+    transportHealth = emptyTransportHealth();
     error = null;
     keyFingerprint = null;
     // `generation` is intentionally NOT reset: a recycled generation would let
@@ -461,6 +475,7 @@ export function createAisWatchdog(options = {}) {
       status,
       error,
       lastMessageAt: lastMessageWall || null,
+      transportHealth: { ...transportHealth },
       silentForMs,
       reconnectAttempt,
       // Projected onto the wall clock purely for display.

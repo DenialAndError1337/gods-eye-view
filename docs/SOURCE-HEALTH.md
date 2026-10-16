@@ -121,14 +121,14 @@ request acceptance, manager completion, source age and retry information.
 
 This is the first scoped inventory, not an audit of every layer family.
 
-| Path                                               | Ownership / existing evidence                                                                                                                                         | Status / remaining work                                                                                                                             |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Aircraft ingestion and military-filter change hook | src/layers/flights/ingestion.js; tracking.js calls flightsLayer.update directly when military filtering changes                                                       | Request history now covers both direct and manager calls. Provider-level fallback subrequests remain outside it.                                    |
-| AIS vessel snapshots / server transport            | src/layers/vessels/ingestion.js and queries.js already expose transportStatus, lastMessageAt and retryInSec; src/data/aisWatchdog.js owns transport watchdog behavior | Preserve message time versus position/data time. Connection-attempt history is a later slice; no new socket loop added.                             |
-| Bike-share proximity activation                    | src/layers/bikeshare/viewport.js camera debounce can activate cities separately from normal update; ingestion.js owns refresh                                         | Existing per-city failure/staleness handling retained. Per-city request-history assessment remains open.                                            |
-| Canadian AQHI                                      | src/layers/airQuality/index.js owns cancellable updates; source.js bounds acquisition                                                                                 | Existing observed-time/error status retained; no new independent polling loop identified in this inspected module.                                  |
-| Satellite core and optional dense shell            | src/layers/satellites/ingestion.js and catalog.js                                                                                                                     | Existing core/dense acceptance and original proxy-cache provenance retained. Per-group request timeline remains outside the common manager history. |
-| Monitoring news and configured RSS/Atom            | src/monitoring/news.js plus server/providers/monitoringFeeds.js                                                                                                       | Existing explicit request ownership/cooldown and server per-feed cache timing retained. Browser acceptance is not server upstream acquisition.      |
+| Path                                               | Ownership / existing evidence                                                                                                                                         | Status / remaining work                                                                                                                                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aircraft ingestion and military-filter change hook | src/layers/flights/ingestion.js; tracking.js calls flightsLayer.update directly when military filtering changes                                                       | Request history now covers both direct and manager calls. Provider-level fallback subrequests remain outside it.                                                        |
+| AIS vessel snapshots / server transport            | src/layers/vessels/ingestion.js and queries.js already expose transportStatus, lastMessageAt and retryInSec; src/data/aisWatchdog.js owns transport watchdog behavior | Preserve message time versus position/data time. Watchdog connection-attempt/handshake/failure history is now exposed end to end (see below); no new socket loop added. |
+| Bike-share proximity activation                    | src/layers/bikeshare/viewport.js camera debounce can activate cities separately from normal update; ingestion.js owns refresh                                         | Existing per-city failure/staleness handling retained. Per-city request-history assessment remains open.                                                                |
+| Canadian AQHI                                      | src/layers/airQuality/index.js owns cancellable updates; source.js bounds acquisition                                                                                 | Existing observed-time/error status retained; no new independent polling loop identified in this inspected module.                                                      |
+| Satellite core and optional dense shell            | src/layers/satellites/ingestion.js and catalog.js                                                                                                                     | Existing core/dense acceptance and original proxy-cache provenance retained. Per-group request timeline remains outside the common manager history.                     |
+| Monitoring news and configured RSS/Atom            | src/monitoring/news.js plus server/providers/monitoringFeeds.js                                                                                                       | Existing explicit request ownership/cooldown and server per-feed cache timing retained. Browser acceptance is not server upstream acquisition.                          |
 
 ### Increment acceptance
 
@@ -139,3 +139,49 @@ updates must not advance attempt time. Confirm usual tracking and military-filte
 interactions still work. Use fixture tests for deterministic stale/error/cancelled
 cases rather than provoking live provider outages. This increment requires a new
 validation run; the user's previous all-green report predates it.
+
+## AIS transport event history
+
+The server watchdog now exposes a copied `transportHealth` object through
+`/api/vessels`, the normalized vessel snapshot, layer stats and common layer
+snapshot. The vessel source/status tooltip shows its fields alongside existing
+valid-message time, position-data time and retry timing.
+
+| Field           | Meaning                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| lastAttempt     | Local wall time when the watchdog commissioned its existing connect action                                                    |
+| lastOpen        | Local wall time of a handshake belonging to the currently owned socket generation                                             |
+| lastFailure     | Local detection/classification time of a retry-triggering failure, close or silence recycle; not the start of a remote outage |
+| lastFailureKind | Watchdog retry class: transport, rate-limit or auth; null if unknown                                                          |
+
+A handshake does not prove receipt of AIS data. An accepted AIS message can carry
+metadata without a current usable position. Neither time replaces lastUpdate or
+newestPositionAt. When the watchdog has no recorded event, fields stay null.
+Older/custom sources may omit the entire object; no receipt-time fallback is
+invented. Frontend normalization validates epochs and allows only these fields
+and failure classes. Public snapshots/stats copy the envelope.
+
+History lasts for the server watchdog lifetime and resets on dispose/recreation.
+It is not a persistent archive, and browser reload alone need not erase it.
+Successful data receipt and credential changes preserve historical failure times;
+current status and event chronology must be read together. An auth-failed probe
+retains the auth retry classification until credential/data recovery, even if the
+probe itself suffers a transport fault. No credential identity is exposed.
+
+Events from retired socket generations cannot advance timestamps. Polling status,
+waiting through backoff, missing credentials and unsupported transport do not
+become new connection attempts. Retry scheduling still uses the original
+monotonic-clock policy; wall timestamps are display evidence and can reflect
+clock corrections. This change adds no requests, sockets, timers or retries.
+
+### AIS acceptance
+
+After applying this increment, stop/restart the local dev server. With your normal
+AIS configuration, enable vessels and inspect the source/status tooltip. Compare
+connection attempt, handshake, last valid message, original position-data time
+and source retry. A healthy connection alone must not make position data newer.
+If no AIS source is configured, record live acceptance as BLOCKED rather than
+adding credentials just for this check. The offline fixtures cover missing keys,
+backoff, silent peers, orphan handlers, failure classes and recovery without a
+live AISStream account. Preserve your current manual results and add a new dated
+validation entry for this increment.

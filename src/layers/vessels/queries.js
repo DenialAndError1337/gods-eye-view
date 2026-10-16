@@ -525,6 +525,13 @@ export function createQueries({
             : undefined,
         transportStatus: state.feed.transportStatus,
         lastMessageAt: state.feed.lastMessageAt,
+        transportHealth: state.feed.transportHealth
+          ? { ...state.feed.transportHealth }
+          : null,
+        ...(Number.isFinite(state.feed.nextAttemptAt) &&
+        state.feed.nextAttemptAt > 0
+          ? { retryAt: state.feed.nextAttemptAt }
+          : {}),
         rawRowCount: state.feed.rawRowCount,
         acceptedRowCount: state.feed.acceptedRowCount,
         // Same chip affordance the flights layer uses: when the server is

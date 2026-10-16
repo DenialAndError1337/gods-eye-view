@@ -377,3 +377,44 @@ test('squawks are validated and omitted OpenSky status differs from an explicit 
   assert.equal(quiet.squawk, null);
   assert.equal(quiet.emergency, null);
 });
+
+test('AIS transport metadata is optional, bounded and distinct from position time', async () => {
+  const { vesselSnapshot } = await import('./vessels.js');
+  const history = {
+    lastAttempt: now - 1000,
+    lastOpen: now - 500,
+    lastFailure: null,
+    lastFailureKind: 'transport',
+    credential: 'must not propagate',
+  };
+  const row = vesselSnapshot({
+    rows: [],
+    transportHealth: history,
+    lastMessageAt: now,
+  });
+  assert.equal(row.observedAtMs, null);
+  assert.deepEqual(row.transportHealth, {
+    lastAttempt: now - 1000,
+    lastOpen: now - 500,
+    lastFailure: null,
+    lastFailureKind: 'transport',
+  });
+  row.transportHealth.lastAttempt = 0;
+  assert.equal(history.lastAttempt, now - 1000);
+  assert.equal(vesselSnapshot({ rows: [] }).transportHealth, null);
+  const invalid = vesselSnapshot({
+    rows: [],
+    transportHealth: {
+      lastAttempt: -1,
+      lastOpen: Infinity,
+      lastFailure: true,
+      lastFailureKind: 'private details',
+    },
+  });
+  assert.deepEqual(invalid.transportHealth, {
+    lastAttempt: null,
+    lastOpen: null,
+    lastFailure: null,
+    lastFailureKind: null,
+  });
+});
