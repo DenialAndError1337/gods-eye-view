@@ -1,4 +1,5 @@
 import { STATUS_POLL_MS } from './policy.js';
+import { CITY_BY_ID } from './registry.js';
 
 export function createControls({ state: layerState, services, parts, source }) {
   const methods = {
@@ -62,7 +63,18 @@ export function createControls({ state: layerState, services, parts, source }) {
       const stats = {
         count: layerState._count,
         lastUpdate: layerState._lastUpdate,
+        lastUpdateMeaning: 'local-acceptance',
         loading: layerState._loading,
+        cityAcquisitionHealth: [...layerState._cityAcquisitionHealth].map(
+          ([cityId, health]) => ({
+            cityId,
+            city: CITY_BY_ID.get(cityId)?.city || cityId,
+            active: layerState._activeCityIds.has(cityId),
+            failed: layerState._failedCityIds.has(cityId),
+            information: health.information ? { ...health.information } : null,
+            status: health.status ? { ...health.status } : null,
+          }),
+        ),
       };
       if (layerState._loading) {
         stats.loadingLabel =

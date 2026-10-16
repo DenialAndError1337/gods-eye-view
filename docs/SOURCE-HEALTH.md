@@ -121,14 +121,14 @@ request acceptance, manager completion, source age and retry information.
 
 This is the first scoped inventory, not an audit of every layer family.
 
-| Path                                               | Ownership / existing evidence                                                                                                                                         | Status / remaining work                                                                                                                                                 |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Aircraft ingestion and military-filter change hook | src/layers/flights/ingestion.js; tracking.js calls flightsLayer.update directly when military filtering changes                                                       | Request history now covers both direct and manager calls. Provider-level fallback subrequests remain outside it.                                                        |
-| AIS vessel snapshots / server transport            | src/layers/vessels/ingestion.js and queries.js already expose transportStatus, lastMessageAt and retryInSec; src/data/aisWatchdog.js owns transport watchdog behavior | Preserve message time versus position/data time. Watchdog connection-attempt/handshake/failure history is now exposed end to end (see below); no new socket loop added. |
-| Bike-share proximity activation                    | src/layers/bikeshare/viewport.js camera debounce can activate cities separately from normal update; ingestion.js owns refresh                                         | Existing per-city failure/staleness handling retained. Per-city request-history assessment remains open.                                                                |
-| Canadian AQHI                                      | src/layers/airQuality/index.js owns cancellable updates; source.js bounds acquisition                                                                                 | Existing observed-time/error status retained; no new independent polling loop identified in this inspected module.                                                      |
-| Satellite core and optional dense shell            | src/layers/satellites/ingestion.js and catalog.js                                                                                                                     | Existing core/dense acceptance and original proxy-cache provenance retained. Per-group request timeline remains outside the common manager history.                     |
-| Monitoring news and configured RSS/Atom            | src/monitoring/news.js plus server/providers/monitoringFeeds.js                                                                                                       | Existing explicit request ownership/cooldown and server per-feed cache timing retained. Browser acceptance is not server upstream acquisition.                          |
+| Path                                               | Ownership / existing evidence                                                                                                                                         | Status / remaining work                                                                                                                                                            |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aircraft ingestion and military-filter change hook | src/layers/flights/ingestion.js; tracking.js calls flightsLayer.update directly when military filtering changes                                                       | Request history now covers both direct and manager calls. Provider-level fallback subrequests remain outside it.                                                                   |
+| AIS vessel snapshots / server transport            | src/layers/vessels/ingestion.js and queries.js already expose transportStatus, lastMessageAt and retryInSec; src/data/aisWatchdog.js owns transport watchdog behavior | Preserve message time versus position/data time. Watchdog connection-attempt/handshake/failure history is now exposed end to end (see below); no new socket loop added.            |
+| Bike-share proximity activation                    | src/layers/bikeshare/viewport.js camera debounce can activate cities separately from normal update; ingestion.js owns refresh                                         | Existing per-city failure/staleness handling retained. Per-city information/status adapter history is now exposed (see below); operator publication-time parsing remains separate. |
+| Canadian AQHI                                      | src/layers/airQuality/index.js owns cancellable updates; source.js bounds acquisition                                                                                 | Existing observed-time/error status retained; no new independent polling loop identified in this inspected module.                                                                 |
+| Satellite core and optional dense shell            | src/layers/satellites/ingestion.js and catalog.js                                                                                                                     | Existing core/dense acceptance and original proxy-cache provenance retained. Per-group request timeline remains outside the common manager history.                                |
+| Monitoring news and configured RSS/Atom            | src/monitoring/news.js plus server/providers/monitoringFeeds.js                                                                                                       | Existing explicit request ownership/cooldown and server per-feed cache timing retained. Browser acceptance is not server upstream acquisition.                                     |
 
 ### Increment acceptance
 
@@ -185,3 +185,54 @@ adding credentials just for this check. The offline fixtures cover missing keys,
 backoff, silent peers, orphan handlers, failure classes and recovery without a
 live AISStream account. Preserve your current manual results and add a new dated
 validation entry for this increment.
+
+## Bike-share city request history
+
+`stats.cityAcquisitionHealth` and common layer snapshots provide one entry per
+city that has attempted an information or status request in this layer lifetime.
+Each entry has cityId/city labels, current active/failed flags and separate
+information/status channel objects (null when never requested).
+
+| Channel field  | Meaning                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| lastAttempt    | Local start of an actual configured GBFS adapter call                                                        |
+| lastCompletion | Local acceptance, failure or cancellation time; retained from the prior request while a newer one is pending |
+| lastAccepted   | Most recent locally parsed and cached response; preserved after failure/cancellation                         |
+| outcome        | pending, accepted, failed or cancelled                                                                       |
+
+An information cache hit or coalesced caller reuses existing history. Empty
+status maps retain their existing parser semantics; accepted means that local
+normalization/cache commit succeeded, not that availability is independently
+verified. Per-city/channel records do not overwrite neighbouring histories.
+The collection is bounded by the registered city IDs, currently 52, and resets
+with init. Disable and moving away retain history while changing active/failed
+flags. Cached metadata may therefore have an older accepted time on reactivation.
+
+The bike-share source/status tooltip shows up to eight active/failed city entries,
+prioritizing failed cities and stating when more current entries exist. Each city
+shows both channels' outcome and timestamps; never-requested channels are explicit.
+Public stats and shared snapshots copy rows and both nested channel objects.
+
+These are adapter timings. The original layer lastUpdate and status-cache timestamp
+are local acceptance/refresh times; they are not operator publication time or a
+station's last_reported. Stats/snapshots now state lastUpdateMeaning as
+local-acceptance, and the tooltip labels that timestamp accordingly. No new remote
+publication-time parsing, source-age classification or retry promise is introduced.
+
+Cancellation settles local callers and releases their loading reference once,
+even if a custom source ignores abort. Such late results cannot write either
+cache or supersede a new request/lifetime's history. This does not forcibly stop
+an uncooperative source transport. Existing source calls, caching, coalescing,
+proximity activation and scheduled polling are retained; no extra polling loop.
+
+### Bike-share acceptance
+
+After applying the update and restarting the dev server, enable Bike Share near a
+registered city at its normal activation altitude. Inspect its source/status
+tooltip for separate information and status histories. Re-entering a cached city
+must not invent another information request; a normal status refresh can advance
+its own attempt/acceptance time. Moving away or disabling must clear loading
+without later cancelled responses overwriting newer state. Use deterministic
+fixtures for ignored-abort/failure conditions rather than forcing live outages.
+Treat absent/out-of-range cities or provider outages as the actual observed
+condition; do not mark a live-source check passed without accepted data.

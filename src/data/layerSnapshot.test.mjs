@@ -345,3 +345,29 @@ test('AIS snapshot copies transport history without turning handshakes into data
   snap.transportHealth.lastOpen = 0;
   assert.equal(transportHealth.lastOpen, 10000);
 });
+
+test('GBFS city histories copy both channels and retain explicit local timestamp meaning', () => {
+  const city = {
+    cityId: 'fixture',
+    active: true,
+    information: { lastAccepted: 9000 },
+    status: { lastAccepted: 10000 },
+  };
+  const snap = layerSnapshot(
+    {
+      enabled: true,
+      stats: {
+        lastUpdate: 1000,
+        lastUpdateMeaning: 'local-acceptance',
+        cityAcquisitionHealth: [city],
+      },
+    },
+    { now: 12000 },
+  );
+  assert.equal(snap.ageSec, 11);
+  assert.equal(snap.lastUpdateMeaning, 'local-acceptance');
+  snap.cityAcquisitionHealth[0].information.lastAccepted = 1;
+  snap.cityAcquisitionHealth[0].status.lastAccepted = 2;
+  assert.equal(city.information.lastAccepted, 9000);
+  assert.equal(city.status.lastAccepted, 10000);
+});

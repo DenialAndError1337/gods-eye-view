@@ -50,6 +50,8 @@ export function createState({ services }) {
   /** @type {Map<string, { stationKeys: Set<string> }>} Per-city runtime tracking of rendered station keys. */
 
   layerState._cityRuntime = new Map();
+  // Latest adapter-request history per registered city and info/status channel.
+  layerState._cityAcquisitionHealth = new Map();
 
   /** @type {Map<string, Map<string, Object>>} Cached station information per city (cityId -> stationId -> StationInfo). */
 

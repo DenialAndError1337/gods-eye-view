@@ -39,6 +39,7 @@ export function createLifecycle({
 
       layerState._activeCityIds = new Set();
       layerState._cityRuntime = new Map();
+      layerState._cityAcquisitionHealth = new Map();
       layerState._stationInfoCache = new Map();
       layerState._statusCache = new Map();
       layerState._inFlightInfo = new Map();

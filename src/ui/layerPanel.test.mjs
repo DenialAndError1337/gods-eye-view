@@ -358,3 +358,38 @@ test('AIS tooltip distinguishes connection events, valid messages and position t
   assert.match(title, /does not establish current vessel positions/);
   assert.match(title, /Source data timestamp: 1970-01-01T00:00:01.000Z/);
 });
+
+test('GBFS tooltip prioritizes failed cities, caps details and labels local acceptance time', async () => {
+  const { LayerPanel } = await import('./layerPanel.js');
+  const cities = Array.from({ length: 9 }, (_, i) => ({
+    cityId: `city-${i}`,
+    city: `City ${i}`,
+    active: true,
+    failed: i === 8,
+    information: { outcome: 'accepted', lastAccepted: 1000 },
+    status: { outcome: i === 8 ? 'failed' : 'pending', lastAttempt: 2000 },
+  }));
+  const title = LayerPanel.prototype._buildHealthTitle({
+    stats: {
+      lastUpdate: 3000,
+      lastUpdateMeaning: 'local-acceptance',
+      cityAcquisitionHealth: cities,
+    },
+  });
+  assert.ok(title.indexOf('City 8') < title.indexOf('City 0'));
+  assert.match(title, /1 additional current cities/);
+  assert.match(
+    title,
+    /Adapter acceptance does not establish upstream freshness/,
+  );
+  assert.match(
+    title,
+    /Layer refresh timestamp \(local acceptance\): 1970-01-01T00:00:03.000Z/,
+  );
+  assert.match(title, /information: accepted/);
+  assert.equal(
+    cities[0].cityId,
+    'city-0',
+    'rendering does not reorder source stats',
+  );
+});

@@ -23,6 +23,7 @@ wording. Its “next” sections are historical; current work is in [TODO.md](TO
 | GEV_VALIDATION_RUNNER_UPDATE            | Automated checks with local per-gate logs and reports                                            | Apply after the validation checkpoint; no new dependencies                                                |
 | GEV_AIRCRAFT_HEALTH_UPDATE              | Aircraft snapshot-request history, scoped telemetry inventory and recorded laptop automated pass | Apply after the validation runner update; manual acceptance still pending                                 |
 | GEV_AIS_TRANSPORT_HEALTH_UPDATE         | AIS watchdog event history from server to tooltip                                                | Apply after the aircraft-health update; no dependencies or retry policy changes                           |
+| GEV_BIKESHARE_HEALTH_UPDATE             | Per-city GBFS request history and cancellation ownership                                         | Apply after the AIS transport update; no new dependencies or polling intervals                            |
 
 Pinned upstream: `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
 The user reported committing the reconciled customization as `d068dcbd` and
@@ -297,6 +298,43 @@ Patch application, resulting tree identity and local documentation links were
 verified. No full application npm ci was needed for this dependency-free update.
 Active manual validation notes remain untouched. Allocation probes and browser/
 live acceptance for this new cumulative source remain pending on the user's host.
+
+## 13. Bike-share per-city request history — 2026-10-16
+
+Added latest information/status request attempt, completion, accepted time and
+outcome per registered city. Static information cache hits and coalesced callers
+do not become attempts. Failures retain previous accepted time and cache age;
+recovery affects only the requesting city's channel. Histories are bounded by the
+registry (currently 52 cities), retained through disable/out-of-range changes and
+reset with layer initialization. Copied public stats/snapshots include active and
+failed flags, with nested channel copies.
+
+The existing source/status tooltip prioritizes failed cities and shows up to eight
+current city histories, explicitly noting additional current cities. It separates
+adapter acceptance from upstream freshness. Existing layer refresh time is now
+labelled local acceptance in stats/snapshots and the tooltip; no GBFS publication
+or last-reported timestamp is invented. Polling intervals, source URLs, static
+cache policy, request coalescing and existing per-city failure severity remain.
+
+Inspection also found that an abort-ignoring source could later populate caches
+and retain loading. Cancelled callers now settle promptly through an abort race;
+cache writes require the current request/lifetime, loading is released exactly
+once, and late settlement cannot decrement a newer operation's loading count.
+No new request or retry timer is added. This is a bounded ownership correction,
+not a claim that an uncooperative underlying transport can be forcibly stopped.
+
+Verification so far: 52 affected tests passed, covering both channels, cache and
+coalescing, failure/recovery, neighbouring-city isolation, immediate cancellation,
+late responses, reinitialized lifetimes, copied snapshots and tooltip limits.
+Full ordinary suite: 7,164 tests, 7,163 passed, one skipped, zero failed;
+51.98 seconds with the existing allocation partition and concurrency 8. Final
+default runner passed 470 focused tests. Production build passed in 9.34 seconds
+with the existing large-chunk warnings; formatting (1,413 files), import/package
+boundaries, layer-token compatibility and whitespace checks passed. Patch
+application/resulting tree identity and local documentation links were verified.
+Allocation measurements and browser/live acceptance for the new cumulative
+source remain pending on the user's host.
+Active manual validation notes are excluded from the patch.
 
 ## Updating this record
 

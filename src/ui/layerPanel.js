@@ -540,7 +540,10 @@ export class LayerPanel {
     const health = stats.refreshHealth;
     const acquisition = stats.acquisitionHealth;
     const transport = stats.transportHealth;
-    if (!health && !acquisition && !transport) return '';
+    const cities = Array.isArray(stats.cityAcquisitionHealth)
+      ? stats.cityAcquisitionHealth
+      : [];
+    if (!health && !acquisition && !transport && !cities.length) return '';
     const retry =
       Number.isFinite(stats.retryAt) && stats.retryAt > 0
         ? new Date(stats.retryAt).toISOString()
@@ -558,7 +561,31 @@ export class LayerPanel {
     const ais = transport
       ? `AIS transport: last connection attempt ${stamp(transport.lastAttempt)}; last handshake ${stamp(transport.lastOpen)}; last failure ${stamp(transport.lastFailure)} (${transport.lastFailureKind || 'unknown'}); last valid AIS message ${stamp(stats.lastMessageAt)}. Transport liveness does not establish current vessel positions. `
       : '';
-    return `${manager}${source}${ais}Source data timestamp: ${stamp(stats.lastUpdate)}. Source retry: ${retry}.`;
+    const currentCities = cities
+      .filter((city) => city.active || city.failed)
+      .sort(
+        (a, b) =>
+          Number(b.failed) - Number(a.failed) ||
+          a.cityId.localeCompare(b.cityId),
+      );
+    const channel = (name, value) =>
+      `${name}: ${value?.outcome || 'never'}; attempt ${stamp(value?.lastAttempt)}; completion ${stamp(value?.lastCompletion)}; accepted ${stamp(value?.lastAccepted)}`;
+    const gbfs = cities.length
+      ? `GBFS city requests: ${
+          currentCities
+            .slice(0, 8)
+            .map(
+              (city) =>
+                `${city.city} (${city.failed ? 'failed' : 'active'}): ${channel('information', city.information)}; ${channel('status', city.status)}`,
+            )
+            .join(' | ') || 'no active or failed cities'
+        }${currentCities.length > 8 ? `; ${currentCities.length - 8} additional current cities` : ''}. Adapter acceptance does not establish upstream freshness. `
+      : '';
+    const timestampLabel =
+      stats.lastUpdateMeaning === 'local-acceptance'
+        ? 'Layer refresh timestamp (local acceptance)'
+        : 'Source data timestamp';
+    return `${manager}${source}${ais}${gbfs}${timestampLabel}: ${stamp(stats.lastUpdate)}. Source retry: ${retry}.`;
   }
 
   _buildMetaText(layer) {

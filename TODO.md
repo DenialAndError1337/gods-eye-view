@@ -29,8 +29,8 @@ User reported full automated validation PASS on 2026-10-16 at 18:23 Europe/Bruss
 including both allocation probes, after npm ci installed the missing Atom parser.
 Browser/live/GPU/long-session acceptance remains pending. The user authorized
 parallel feature work while performing those manual checks.
-The current AIS increment's development-host ordinary run passed: 7,155 tests
-passed, one skipped, zero failed. This also exercises the preceding aircraft and
+The current bike-share increment's development-host ordinary run passed: 7,163 tests
+passed, one skipped, zero failed. This also exercises the preceding aircraft, AIS and
 validator changes together. Allocation measurements and browser/live acceptance
 for the new cumulative source still require the user's host. Earlier failed
 runs and their rechecks remain in DONE.md rather than being reclassified as passes.
@@ -57,8 +57,11 @@ These are candidates, rather than promises that each will ship.
 - [x] AIS transport connection-attempt history: expose watchdog commissioning,
       handshake and classified-failure times through the existing API, source
       adapter, layer stats, shared snapshot and tooltip. Reconnect policy unchanged.
-- [ ] Extend telemetry inventory to remaining layer families and assess bike-share
-      per-city acquisition history without duplicating existing timers or requests.
+- [x] Bike-share per-city information/status request history, copied stats/snapshots,
+      bounded source tooltip and explicit local-acceptance timestamp meaning.
+      Cancelled uncooperative responses cannot overwrite caches or loading state.
+- [ ] Extend telemetry inventory to remaining layer families; assess explicit GBFS
+      operator publication timestamps and server-cache provenance separately.
 - [ ] Optional configured-feed editing in the browser: first decide how local
       configuration is persisted and validated. Server-side HTTPS/DNS protections
       must continue to apply.

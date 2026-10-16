@@ -171,6 +171,18 @@ export function layerSnapshot(layer = {}, { now = Date.now() } = {}) {
           lastMessageAt: stats.lastMessageAt ?? null,
         }
       : {}),
+    ...(Array.isArray(stats.cityAcquisitionHealth)
+      ? {
+          cityAcquisitionHealth: stats.cityAcquisitionHealth.map((city) => ({
+            ...city,
+            information: city.information ? { ...city.information } : null,
+            status: city.status ? { ...city.status } : null,
+          })),
+        }
+      : {}),
+    ...(stats.lastUpdateMeaning === 'local-acceptance'
+      ? { lastUpdateMeaning: 'local-acceptance' }
+      : {}),
   };
 }
 

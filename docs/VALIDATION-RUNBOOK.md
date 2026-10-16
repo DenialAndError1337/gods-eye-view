@@ -256,3 +256,24 @@ Do not change credentials or provoke upstream failures solely to test history;
 use the local socket/middleware fixtures for deterministic failure and recovery.
 See SOURCE-HEALTH.md for field meanings and lifetime. This increment does not
 alter the active results template; keep your manual notes tied to tested commits.
+
+## Bike-share history increment addendum
+
+GEV_BIKESHARE_HEALTH_UPDATE follows the AIS transport update. Restart the dev
+server after applying it and run the automated validation command for this new
+commit. The focused runner now includes bike-share request/failure regressions.
+
+At a registered city and normal activation altitude, enable Bike Share and inspect
+its source/status tooltip. Information and live-status requests have separate
+attempt/completion/accepted times. Cache reuse is not another information attempt;
+status refresh affects its own channel. The layer refresh timestamp is explicitly
+local acceptance, not operator publication time. Failed cities are prioritized;
+up to eight current histories are shown, with a count if additional entries exist.
+
+Move away and back, or disable/re-enable, and confirm loading clears and station
+selection/counts still behave normally. Do not create extra source requests to
+prove cache internals; offline fixtures cover coalescing, old responses and cache
+ownership. History is bounded to the registry and layer lifetime, not a durable
+archive. Missing map proximity or an unavailable provider must be recorded
+accurately. Preserve your existing results and add a dated entry for the new
+commit; this patch leaves the active results template untouched.

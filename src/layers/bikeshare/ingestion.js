@@ -6,6 +6,7 @@ export function createIngestion({
   parts,
   source,
 }) {
+  layerState._cityAcquisitionHealth ??= new Map();
   /**
    * Convert an upstream GBFS URL into a local proxy URL.
    * The dev server proxies /api/gbfs/* to avoid CORS issues with third-party feeds.
@@ -42,6 +43,81 @@ export function createIngestion({
 
   async function fetchGbfsJson(upstreamUrl, options) {
     return source.getStations(upstreamUrl, options);
+  }
+
+  /** One actual adapter call; cache hits and coalesced callers never enter here. */
+  async function runCityRequest(
+    cityId,
+    channel,
+    controller,
+    acquire,
+    parse,
+    commit,
+  ) {
+    const history = layerState._cityAcquisitionHealth;
+    const city = history.get(cityId) || {};
+    const health = {
+      lastAccepted: null,
+      lastCompletion: null,
+      ...city[channel],
+      lastAttempt: Date.now(),
+      outcome: 'pending',
+    };
+    city[channel] = health;
+    history.set(cityId, city);
+    const owns = () =>
+      layerState._cityAcquisitionHealth === history &&
+      history.get(cityId)?.[channel] === health;
+    const finish = (outcome) => {
+      if (!owns() || health.outcome !== 'pending') return;
+      health.outcome = outcome;
+      health.lastCompletion = Date.now();
+      if (outcome === 'accepted') health.lastAccepted = health.lastCompletion;
+    };
+    let released = false;
+    let rejectCancellation;
+    const releaseLoading = () => {
+      if (released) return;
+      released = true;
+      if (layerState._cityAcquisitionHealth === history) endLoading();
+    };
+    const onAbort = () => {
+      finish('cancelled');
+      releaseLoading();
+      rejectCancellation?.(
+        new DOMException('GBFS request cancelled', 'AbortError'),
+      );
+    };
+    const assertCurrent = () => {
+      controller.signal.throwIfAborted();
+      if (!owns())
+        throw new DOMException('GBFS request superseded', 'AbortError');
+    };
+    beginLoading();
+    controller.signal.addEventListener('abort', onAbort, { once: true });
+    try {
+      assertCurrent();
+      const cancellation = new Promise((_, reject) => {
+        rejectCancellation = reject;
+      });
+      const payload = await Promise.race([acquire(), cancellation]);
+      assertCurrent();
+      const value = parse(payload);
+      assertCurrent();
+      commit(value);
+      finish('accepted');
+      return value;
+    } catch (error) {
+      const cancelled =
+        controller.signal.aborted || !owns() || error?.name === 'AbortError';
+      finish(cancelled ? 'cancelled' : 'failed');
+      if (cancelled)
+        throw new DOMException('GBFS request cancelled', 'AbortError');
+      throw error;
+    } finally {
+      controller.signal.removeEventListener('abort', onAbort);
+      releaseLoading();
+    }
   }
 
   /**
@@ -91,12 +167,15 @@ export function createIngestion({
     if (!city) throw new Error(`Unknown GBFS city "${cityId}"`);
     const controller = new AbortController();
 
-    const promise = (async () => {
-      beginLoading();
-      try {
-        const payload = await fetchGbfsJson(city.stationInformationUrl, {
+    const promise = runCityRequest(
+      cityId,
+      'information',
+      controller,
+      () =>
+        fetchGbfsJson(city.stationInformationUrl, {
           signal: controller.signal,
-        });
+        }),
+      (payload) => {
         const stationMap = parts.model.stationsWithinCity(
           city,
           parts.model.parseStationInformation(payload),
@@ -104,12 +183,10 @@ export function createIngestion({
         if (stationMap.size === 0) {
           throw new Error(`No station information for ${city.city}`);
         }
-        layerState._stationInfoCache.set(cityId, stationMap);
         return stationMap;
-      } finally {
-        endLoading();
-      }
-    })().finally(() => {
+      },
+      (stationMap) => layerState._stationInfoCache.set(cityId, stationMap),
+    ).finally(() => {
       // Clean up in-flight entry only if it is still ours (not replaced by a newer request)
       const current = layerState._inFlightInfo.get(cityId);
       if (current && current.controller === controller)
@@ -138,22 +215,22 @@ export function createIngestion({
     if (!city) throw new Error(`Unknown GBFS city "${cityId}"`);
     const controller = new AbortController();
 
-    const promise = (async () => {
-      beginLoading();
-      try {
-        const payload = await fetchGbfsJson(city.stationStatusUrl, {
+    const promise = runCityRequest(
+      cityId,
+      'status',
+      controller,
+      () =>
+        fetchGbfsJson(city.stationStatusUrl, {
           signal: controller.signal,
-        });
-        const statusMap = parts.model.parseStationStatus(payload);
+        }),
+      (payload) => parts.model.parseStationStatus(payload),
+      (statusMap) => {
         layerState._statusCache.set(cityId, {
           statusMap,
           timestamp: Date.now(),
         });
-        return statusMap;
-      } finally {
-        endLoading();
-      }
-    })().finally(() => {
+      },
+    ).finally(() => {
       const current = layerState._inFlightStatus.get(cityId);
       if (current && current.controller === controller)
         layerState._inFlightStatus.delete(cityId);
