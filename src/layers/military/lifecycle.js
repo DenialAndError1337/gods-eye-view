@@ -1,4 +1,5 @@
 import * as Cesium from 'cesium';
+import { createMilitaryAcquisitionHealth } from './ingestion.js';
 import { JET_MODEL_URL } from './policy.js';
 
 export function createLifecycle({
@@ -81,6 +82,7 @@ export function createLifecycle({
       flightState._groundSnap.clear();
       flightState.feed._count = 0;
       flightState.feed._lastUpdate = null;
+      flightState.feed._acquisitionHealth = createMilitaryAcquisitionHealth();
       flightState.feed._backoff = false;
       flightState.feed._retryAt = 0;
       flightState.feed._lastError = null;

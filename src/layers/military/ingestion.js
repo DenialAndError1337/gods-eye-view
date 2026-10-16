@@ -1,5 +1,16 @@
 import { ERROR_BACKOFF_INTERVAL } from './recordPolicy.js';
 
+/** Adapter history is independent from source observation and manager completion. */
+export function createMilitaryAcquisitionHealth() {
+  return {
+    lastAttempt: null,
+    lastCompletion: null,
+    lastAccepted: null,
+    lastSuccess: null,
+    outcome: 'never',
+  };
+}
+
 /** Own military source acquisition, cancellation, freshness and error backoff. */
 export function createIngestion({
   feed,
@@ -27,13 +38,30 @@ export function createIngestion({
       const updateSignal = signal
         ? AbortSignal.any([signal, resourceController.signal])
         : resourceController.signal;
+      let health = null;
+      const owns = () => health && feed._acquisitionHealth === health;
+      const finish = (outcome, accepted = false, clean = false) => {
+        if (!owns() || health.outcome !== 'pending') return;
+        const at = Date.now();
+        health.lastCompletion = at;
+        health.outcome = outcome;
+        if (accepted) health.lastAccepted = at;
+        if (clean) health.lastSuccess = at;
+      };
       try {
         updateSignal.throwIfAborted();
+        health = feed._acquisitionHealth = {
+          ...(feed._acquisitionHealth || createMilitaryAcquisitionHealth()),
+          lastAttempt: Date.now(),
+          outcome: 'pending',
+        };
         const snapshot = await feed._source.getSnapshot(
           {},
           { signal: updateSignal },
         );
         updateSignal.throwIfAborted();
+        if (!owns())
+          throw new DOMException('Military update superseded', 'AbortError');
         feed._lastStatus = snapshot.status ?? 200;
         feed._lastSource = snapshot.source;
         setSourceLabel(feed._lastSource);
@@ -53,12 +81,19 @@ export function createIngestion({
           ids: accepted.ids,
           source: feed._lastSource,
         };
+        finish(feed._backoff ? 'degraded' : 'accepted', true, !feed._backoff);
         console.log(`[Data:Military] Updated: ${feed._count} aircraft`);
         applyPendingTrackingRestore();
       } catch (e) {
-        if (updateSignal.aborted || e?.name === 'AbortError') {
+        if (
+          updateSignal.aborted ||
+          e?.name === 'AbortError' ||
+          (health && !owns())
+        ) {
+          finish('cancelled');
           throw new DOMException('Military update aborted', 'AbortError');
         }
+        finish('failed');
         console.warn('[Data:Military] Fetch error:', e);
         feed._backoff = true;
         feed._retryAt =
@@ -85,6 +120,7 @@ export function createMilitaryFeed(source) {
   feed._source = source;
   feed._count = 0;
   feed._lastUpdate = null;
+  feed._acquisitionHealth = createMilitaryAcquisitionHealth();
   feed._backoff = false;
   feed._retryAt = 0;
   feed._lastError = null;

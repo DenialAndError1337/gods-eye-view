@@ -28,6 +28,8 @@ const focusedFiles = [
   'src/ui/layerPanel.test.mjs',
   'src/layers/cctv/source.test.mjs',
   'src/layers/flights/ingestion.test.mjs',
+  'src/layers/military/ingestion.test.mjs',
+  'src/layers/military/ownership.test.mjs',
   'src/layers/bikeshare/acquisitionHealth.test.mjs',
   'src/layers/bikeshare/failureReporting.test.mjs',
   'src/layers/bikeshare/latamPbscCities.test.mjs',

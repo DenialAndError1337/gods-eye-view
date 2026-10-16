@@ -307,3 +307,39 @@ time explicitly. Loading/error precedence and existing feed-state classification
 remain unchanged. ON still means the layer's existing nominal state, not a claim
 that a particular frame is recent. No frame timestamp, retry, polling interval or
 new acquisition is introduced. Catalog/health/frame histories remain follow-up work.
+
+## Independent military-aircraft request history
+
+The military layer now supplies its own copied acquisitionHealth envelope with
+the same lastAttempt, lastCompletion, lastAccepted, lastSuccess and outcome fields
+as general aircraft. It describes actual calls through military ingestion to the
+configured military adapter, including direct update callers. The existing source
+line tooltip automatically displays it beside manager history and source time.
+The existing military retry deadline is exposed as retryAt as well as retryInSec.
+No retry interval, timer, request or fallback policy is added.
+
+A backoff-skipped or pre-aborted call makes no attempt. Pending history retains
+earlier settled/accepted times. A response carrying stale or unknown-freshness
+evidence advances acceptance but not clean acceptance. Failed/cancelled requests
+retain those accepted times. Cancellation is recorded when the awaited adapter
+call settles; an abort-ignoring source can therefore leave the caller/history
+pending until settlement. No transport can be forcibly stopped by this metadata.
+
+Only the latest actual request owns publication. A superseded success or failure
+throws AbortError before changing snapshot, source label, tracking restore, retry
+state or current history. Replacing history during initialization retires old
+requests. Initialization resets history; ordinary disable retains it. Completion
+time is local settlement, and clean acceptance means only that the adapter did
+not flag stale/unknown freshness. Neither proves a new upstream acquisition.
+lastUpdate still carries the adapter's observedAtMs, including null when unknown.
+Provider-level fallback subrequests and military-classification initialization are
+outside this military snapshot history. The two aircraft layers remain independent.
+
+### Military acceptance
+
+With the normal military source enabled, inspect source/status details for a
+snapshot attempt/outcome and local acceptance beside original source observation
+time. A reported retry/backoff period must not invent repeated adapter attempts.
+Check normal selection/tracking, disable/re-enable and separate general-aircraft
+controls. Use fixtures for overlap, failure and cancellation rather than provoking
+live outages. This requires new cumulative validation and browser/live acceptance.

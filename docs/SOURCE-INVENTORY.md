@@ -22,7 +22,7 @@ are not exhaustively audited. Existing request policies remain unchanged.
 | Layer ID | Inspected entry points / ownership | Timestamp evidence and remaining gap |
 | --- | --- | --- |
 | `flights` | src/layers/flights/ingestion.js; tracking direct-refresh hook | Adapter acquisitionHealth covers manager/direct snapshot calls. Adapter observation time remains lastUpdate; fallback subrequests are separate. |
-| `military` | src/layers/military/ingestion.js; src/layers/military/lifecycle.js | Separate military snapshot path, observation clock and retry deadline. General-flight acquisitionHealth must not be assumed to cover this path or classification initialization. |
+| `military` | src/layers/military/ingestion.js; src/layers/military/lifecycle.js | Separate military snapshot path now has its own acquisitionHealth and retry deadline; observation time remains separate. General-flight telemetry and classification initialization are not merged into it. |
 | `local-adsb` | src/layers/localAdsb/index.js; receiver subscriptions and local render/sync timers | lastUpdate is newest merged message time, not necessarily a fresh position. Decoder/receiver acquisition is outside manager update. |
 | `ais-live-vessels` | src/layers/vessels/ingestion.js; src/data/aisWatchdog.js | Server connection event history, valid message time and position-data time are distinct. Transport handshake does not date a position. |
 | `bikeshare` | src/layers/bikeshare/ingestion.js; src/layers/bikeshare/viewport.js | Per-city adapter attempts/acceptance and operator feed-update claims now separate. Station last_reported and upstream acquisition provenance need separate assessment. |
@@ -73,8 +73,9 @@ Saved views restore only filters and bounds, never acquisition or camera state.
    perimeters, launches, imagery and mapped/static layers before treating generic
    lastUpdate as a source observation clock. AQHI already has observedAt; derived
    awareness needs an evaluation label rather than a remote-source label.
-3. Military snapshot path: assess dedicated request history separately from the
-   general-flight adapter instrumentation.
+3. Military snapshot path: dedicated adapter request history is now implemented
+   separately from general aircraft. Provider fallback subrequests and registry
+   classification initialization remain distinct boundaries.
 4. Composite/viewport requests: traffic, weather frames, street-level providers,
    transit feeds, installation supplementation and radio playback need bounded
    per-channel ownership, not a global request wrapper that merges unlike clocks.

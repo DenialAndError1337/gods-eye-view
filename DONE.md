@@ -27,6 +27,7 @@ wording. Its “next” sections are historical; current work is in [TODO.md](TO
 | GEV_SAVED_VIEWS_UPDATE | Explicit local filter/region presets | Apply after the bike-share health update; no new dependencies |
 | GEV_GBFS_TIMESTAMP_UPDATE | Reported operator feed-update timestamps and cache-boundary assessment | Apply after the saved-views update; no new dependencies |
 | GEV_SOURCE_INVENTORY_UPDATE | Catalog-wide source inventory and CCTV maintenance/frame-age distinction | Apply after the GBFS timestamp update; no new dependencies |
+| GEV_MILITARY_HEALTH_UPDATE | Independent military adapter history and late-response ownership | Apply after the source-inventory update; no new dependencies |
 
 Pinned upstream: `537e99dfa45a3f7b239ad6230a65be658b3ea29d`.
 The user reported committing the reconciled customization as `d068dcbd` and
@@ -445,6 +446,35 @@ The user confirmed successful application through the preceding GBFS update;
 its laptop validation is running, and no passing result is inferred from that.
 Manual/browser/live acceptance remains pending; active validation notes and the
 archived implementation history are excluded from the patch.
+
+## 17. Military-aircraft adapter history and request ownership — 2026-10-16
+
+Added independent military acquisitionHealth (attempt/completion/accepted/clean
+acceptance/outcome), copied public stats and the existing retry deadline. The
+existing shared snapshot/tooltip consumes these fields without a second UI path.
+The adapter source observation time still supplies lastUpdate; local acceptance
+is not upstream acquisition. Skipped backoff and pre-aborted work create no attempt.
+Initialization resets history; cancellation is recorded when the awaited source
+settles, preserving previous acceptance. Unknown/stale freshness is degraded.
+
+Inspection found older overlapping replies/failures could overwrite newer source
+state. Latest actual request/history ownership now guards both publication and
+failure handling. Superseded work throws AbortError before changing snapshot,
+source labels, tracking restore, retry state or current history. Reinitialized
+lifetimes retire old responses. Normal retry/cancellation policy, adapter query,
+classification initialization and provider fallback behavior remain unchanged.
+
+Verification: 49 final affected tests passed, including tracking-epoch assertions,
+including actual ingestion, clean/degraded/failure/recovery, skipped backoff,
+pre-abort, ignored-abort late reply, superseded success/failure, replaced lifetime,
+public/shared copies, source age and retry deadline. Cumulative ordinary suite:
+7,181 tests, 7,180 passed, one skipped, zero failed (53.26 seconds), existing
+allocation partition. Default validation plan passed 522 focused tests, production
+build, formatting, import/package boundaries, layer-token compatibility and whitespace.
+Buffered log capture retained complete evidence; command arguments/check policy
+match the default runner. Patch application/result-tree identity, documentation
+links and unchanged active manual notes/history were verified. Active manual results/history are excluded; user laptop
+validation and browser/live acceptance remain separate and pending.
 
 ## Updating this record
 

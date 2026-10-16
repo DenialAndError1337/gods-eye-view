@@ -325,3 +325,16 @@ cleared. Do not store sensitive presets on a shared device unless intended.
 4. Where HUD/voice source metadata is inspected, CCTV ageSec/ageLabel should be
    unknown, with lastUpdate retained and marked local-maintenance. Record actual
    browser/GPU/live results and the tested commit in VALIDATION-RESULTS.md.
+
+## Military-aircraft request history acceptance
+
+1. Enable military aircraft with your normal source configuration. Hover its
+   source/status line. Verify separate snapshot attempt, completion, accepted and
+   clean-acceptance times; source timestamp must retain its observation meaning.
+2. During a naturally reported retry/backoff interval, skipped calls must not
+   advance attempt history. No extra retry interval or polling loop is added.
+3. Exercise normal military selection/tracking, general-aircraft controls and
+   disable/re-enable. The two layers' histories must remain independent.
+4. Use fixtures for superseded responses, old failures and abort-ignoring sources.
+   Record live unavailability as observed, without forcing an outage. Preserve
+   earlier reports and record this tested commit in VALIDATION-RESULTS.md.
